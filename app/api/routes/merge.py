@@ -83,9 +83,27 @@ async def merge_pdf(
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")
 
-    for upload in files:
-        if not upload.filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail=f"Not a PDF: {upload.filename}")
+    buffered_files: list[tuple[str, bytes]] = []
+    try:
+        for index, upload in enumerate(files):
+            filename = upload.filename or f"upload-{index + 1}.pdf"
+            if not filename.lower().endswith(".pdf"):
+                raise HTTPException(status_code=400, detail=f"Not a PDF: {filename}")
+
+            try:
+                data = await upload.read()
+            except Exception as exc:  # pragma: no cover - defensive
+                raise HTTPException(
+                    status_code=400, detail=f"Failed to read '{filename}': {exc}"
+                ) from exc
+
+            buffered_files.append((filename, data))
+    finally:
+        for upload in files:
+            try:
+                await upload.close()
+            except Exception:  # pragma: no cover - defensive
+                pass
 
     per_file_ranges: list[str] = []
     if ranges:
@@ -117,7 +135,7 @@ async def merge_pdf(
         try:
             job.status = "running"
             await _broadcast(job)
-            await merger.append_files(files, per_file_ranges, progress_callback)
+            await merger.append_files(buffered_files, per_file_ranges, progress_callback)
             job.result = merger.to_bytes()
             job.status = "completed"
             job.processed_pages = job.total_pages
@@ -131,12 +149,6 @@ async def merge_pdf(
             job.status = "error"
             job.error = str(exc)
             await _broadcast(job)
-        finally:
-            for upload in files:
-                try:
-                    await upload.close()
-                except Exception:  # pragma: no cover - defensive
-                    pass
 
     asyncio.create_task(_run_job())
 

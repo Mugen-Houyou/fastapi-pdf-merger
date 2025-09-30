@@ -1,7 +1,7 @@
 import io
-from typing import Awaitable, Callable, Iterable, Optional
+from typing import Awaitable, Callable, Iterable, Optional, Tuple
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from pypdf import PdfReader, PdfWriter
 
@@ -18,7 +18,7 @@ class PdfMergerService:
 
     async def append_files(
         self,
-        files: Iterable[UploadFile],
+        files: Iterable[Tuple[str, bytes]],
         ranges: list[str],
         progress_callback: Optional[ProgressCallback] = None,
     ) -> None:
@@ -26,28 +26,29 @@ class PdfMergerService:
         prepared: list[tuple[PdfReader, list[int], str]] = []
 
         total_pages = 0
-        for index, upload in enumerate(files):
-            data = await upload.read()
+        for index, (name, data) in enumerate(files):
             if len(data) == 0:
-                raise HTTPException(status_code=400, detail=f"Empty file: {upload.filename}")
+                filename = name or f"upload-{index + 1}.pdf"
+                raise HTTPException(status_code=400, detail=f"Empty file: {filename}")
 
             try:
                 pdf = PdfReader(io.BytesIO(data))
             except Exception as exc:  # pragma: no cover - defensive
                 raise HTTPException(
-                    status_code=400, detail=f"Failed to read '{upload.filename}': {exc}"
+                    status_code=400,
+                    detail=f"Failed to read '{name or f'upload-{index + 1}.pdf'}': {exc}",
                 ) from exc
 
             if pdf.is_encrypted:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Encrypted PDF not supported: {upload.filename}",
+                    detail=f"Encrypted PDF not supported: {name or f'upload-{index + 1}.pdf'}",
                 )
 
             wanted_ranges = ranges[index] if index < len(ranges) else ""
             indices = parse_page_ranges(wanted_ranges or "", len(pdf.pages))
             total_pages += len(indices)
-            prepared.append((pdf, indices, upload.filename))
+            prepared.append((pdf, indices, name or f"upload-{index + 1}.pdf"))
 
         if progress_callback is not None:
             await progress_callback(processed_pages, total_pages, None)
