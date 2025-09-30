@@ -21,6 +21,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "hero_description": "Combine multiple PDF files into a single document and control the order and page ranges with ease.",
             "drop_instruction": "Drop PDF files here or click to browse",
             "drop_detail": "Your files will stay on this device until you choose to merge them.",
+            "upload_limit_note": "You can upload up to {limit} MB in total.",
             "empty_state": "No files added yet. Add PDFs above to configure their ranges.",
             "output_label": "Output filename",
             "api_key_label": "API key",
@@ -61,8 +62,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "failed_prefix": "Failed: {message}",
             },
             "aria": {
-                "move_up": "Move {name} up",
-                "move_down": "Move {name} down",
+                "drag_handle": "Drag {name} to reorder",
                 "remove": "Remove {name}",
             },
             "placeholders": {
@@ -77,6 +77,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "hero_description": "여러 PDF 파일을 하나의 문서로 합치고, 순서와 페이지 범위를 쉽게 제어하세요.",
             "drop_instruction": "여기에 PDF 파일을 끌어오거나 클릭하여 선택하세요",
             "drop_detail": "파일은 병합을 선택할 때까지 이 기기에만 머무릅니다.",
+            "upload_limit_note": "총 {limit}MB까지 업로드할 수 있습니다.",
             "empty_state": "아직 추가된 파일이 없습니다. 위에서 PDF를 추가해 범위를 설정하세요.",
             "output_label": "출력 파일 이름",
             "api_key_label": "API 키",
@@ -117,8 +118,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "failed_prefix": "실패: {message}",
             },
             "aria": {
-                "move_up": "{name} 위로 이동",
-                "move_down": "{name} 아래로 이동",
+                "drag_handle": "{name}를 드래그하여 순서를 변경",
                 "remove": "{name} 삭제",
             },
             "placeholders": {

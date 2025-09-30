@@ -16,12 +16,13 @@
   const orientation = $('#orientation');
   const fitMode = $('#fitMode');
 
-  const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en' } = window.__PDFMERGER__ || {
+  const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDFMERGER__ || {
     apiKeyRequired: false,
     defaults: { output_name: 'merged.pdf', paper_size: 'A4', orientation: 'portrait', fit_mode: 'letterbox' },
     endpoints: { merge: '/merge' },
     i18n: {},
-    locale: 'en'
+    locale: 'en',
+    limits: {}
   };
 
   const translate = (key, params = {}) => {
@@ -86,17 +87,21 @@
     files.forEach((file, index) => {
       const row = document.createElement('div');
       row.className = 'file-row';
+      row.dataset.index = String(index);
       row.innerHTML = `
-        <div>
-          <div class="file-meta">
-            <span class="file-index">${index + 1}</span>
-            <span class="file-name" title="${file.name}">${file.name}</span>
-            <span class="file-size">${formatSize(file.size)}</span>
-          </div>
-          <div class="file-actions">
-            <button class="icon-btn" data-action="up" data-index="${index}" aria-label="${translate('aria.move_up', { name: file.name })}">↑</button>
-            <button class="icon-btn" data-action="down" data-index="${index}" aria-label="${translate('aria.move_down', { name: file.name })}">↓</button>
-            <button class="icon-btn danger" data-action="remove" data-index="${index}" aria-label="${translate('aria.remove', { name: file.name })}">${translate('buttons.remove')}</button>
+        <div class="file-main">
+          <button type="button" class="drag-handle" data-index="${index}" draggable="true" aria-label="${translate('aria.drag_handle', { name: file.name })}">
+            <span aria-hidden="true">⋮⋮</span>
+          </button>
+          <div class="file-body">
+            <div class="file-meta">
+              <span class="file-index">${index + 1}</span>
+              <span class="file-name" title="${file.name}">${file.name}</span>
+              <span class="file-size">${formatSize(file.size)}</span>
+            </div>
+            <div class="file-actions">
+              <button class="icon-btn danger" data-action="remove" data-index="${index}" aria-label="${translate('aria.remove', { name: file.name })}">${translate('buttons.remove')}</button>
+            </div>
           </div>
         </div>
         <div>
@@ -118,8 +123,6 @@
     refreshList();
   };
 
-  const moveUp = (i) => { if (i <= 0) return; [files[i-1], files[i]] = [files[i], files[i-1]]; [ranges[i-1], ranges[i]] = [ranges[i], ranges[i-1]]; refreshList(); };
-  const moveDown = (i) => { if (i >= files.length - 1) return; [files[i+1], files[i]] = [files[i], files[i+1]]; [ranges[i+1], ranges[i]] = [ranges[i], ranges[i+1]]; refreshList(); };
   const removeFile = (i) => { files.splice(i,1); ranges.splice(i,1); refreshList(); };
 
   filesDiv.addEventListener('click', (e) => {
@@ -127,9 +130,109 @@
     if (!btn) return;
     const i = Number(btn.dataset.index);
     if (Number.isNaN(i)) return;
-    if (btn.dataset.action === 'up') moveUp(i);
-    else if (btn.dataset.action === 'down') moveDown(i);
-    else if (btn.dataset.action === 'remove') removeFile(i);
+    if (btn.dataset.action === 'remove') removeFile(i);
+  });
+
+  const reorderItems = (from, to) => {
+    if (from === to) return;
+    if (from < 0 || from >= files.length) return;
+    if (to < 0) to = 0;
+    if (to > files.length) to = files.length;
+    const [movedFile] = files.splice(from, 1);
+    const [movedRange] = ranges.splice(from, 1);
+    files.splice(to, 0, movedFile);
+    ranges.splice(to, 0, movedRange);
+    refreshList();
+  };
+
+  let dragIndex = null;
+  let dropTarget = null;
+  let dropAfter = false;
+
+  const clearDragIndicators = () => {
+    filesDiv.querySelectorAll('.file-row').forEach(row => {
+      row.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+    });
+    dropTarget = null;
+    dropAfter = false;
+  };
+
+  filesDiv.addEventListener('dragstart', (e) => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) {
+      e.preventDefault();
+      return;
+    }
+    const row = handle.closest('.file-row');
+    if (!row) {
+      e.preventDefault();
+      return;
+    }
+    const index = Number(row.dataset.index);
+    if (Number.isNaN(index)) {
+      e.preventDefault();
+      return;
+    }
+    dragIndex = index;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  });
+
+  filesDiv.addEventListener('dragover', (e) => {
+    if (dragIndex === null) return;
+    const row = e.target.closest('.file-row');
+    if (!row) {
+      clearDragIndicators();
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    const rect = row.getBoundingClientRect();
+    const after = e.clientY > rect.top + rect.height / 2;
+    if (dropTarget !== row || dropAfter !== after) {
+      clearDragIndicators();
+      row.classList.add(after ? 'drag-over-bottom' : 'drag-over-top');
+      dropTarget = row;
+      dropAfter = after;
+    }
+    e.dataTransfer.dropEffect = 'move';
+  });
+
+  filesDiv.addEventListener('dragleave', (e) => {
+    const row = e.target.closest('.file-row');
+    if (!row) return;
+    row.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (row === dropTarget) {
+      dropTarget = null;
+      dropAfter = false;
+    }
+  });
+
+  filesDiv.addEventListener('drop', (e) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    let targetIndex;
+    if (dropTarget) {
+      targetIndex = Number(dropTarget.dataset.index);
+      if (Number.isNaN(targetIndex)) {
+        clearDragIndicators();
+        dragIndex = null;
+        return;
+      }
+      if (dropAfter) targetIndex += 1;
+    } else {
+      targetIndex = files.length;
+    }
+    if (dragIndex < targetIndex) targetIndex -= 1;
+    reorderItems(dragIndex, targetIndex);
+    dragIndex = null;
+    clearDragIndicators();
+  });
+
+  filesDiv.addEventListener('dragend', () => {
+    dragIndex = null;
+    clearDragIndicators();
   });
 
   filesDiv.addEventListener('input', (e) => {
