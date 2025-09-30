@@ -29,6 +29,13 @@
       <input id="outputName" type="text" value="{{ defaults.output_name }}" placeholder="merged.pdf" />
     </label>
     <label>
+      {{ t.engine_label }}
+      <select id="engine">
+        <option value="pypdf" {% if defaults.engine == "pypdf" %}selected{% endif %}>{{ t.engine_pypdf }}</option>
+        <option value="pikepdf" {% if defaults.engine == "pikepdf" %}selected{% endif %}>{{ t.engine_pikepdf }}</option>
+      </select>
+    </label>
+    <label>
       {{ t.api_key_label }}
       <input id="apiKey" type="text" placeholder="{{ t.api_key_placeholder }}" {% if not feature_flags.api_key_required %}disabled{% endif %}/>
     </label>

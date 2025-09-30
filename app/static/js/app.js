@@ -6,6 +6,7 @@
   const dropBox = $('#dropBox');
   const filesDiv = $('#files');
   const outputName = $('#outputName');
+  const engine = $('#engine');
   const mergeBtn = $('#mergeBtn');
   const apiKey = $('#apiKey');
   const clearBtn = $('#clearBtn');
@@ -40,6 +41,7 @@
 
   // defaults 적용 (SSR에서 이미 넣어주지만, JS 초기화 보강)
   if (outputName && defaults.output_name) outputName.value = defaults.output_name;
+  if (engine && defaults.engine) engine.value = defaults.engine;
   if (paperSize && defaults.paper_size) paperSize.value = defaults.paper_size;
   if (orientation && defaults.orientation) orientation.value = defaults.orientation;
   if (fitMode && defaults.fit_mode) fitMode.value = defaults.fit_mode;
@@ -158,6 +160,7 @@
     files.forEach(f => form.append('files', f, f.name));
     form.append('ranges', JSON.stringify(ranges.map(v => v || '')));
     if (outputName?.value) form.append('output_name', outputName.value);
+    if (engine?.value) form.append('engine', engine.value);
 
     // 추가 옵션 (A4/Letter, orientation, fit_mode)
     if (paperSize?.value) form.append('paper_size', paperSize.value);
