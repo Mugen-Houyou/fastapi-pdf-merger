@@ -467,6 +467,18 @@ HTML_CONTENT = """<!doctype html>
     let files = [];
     let ranges = [];
 
+    function buildApiUrl(path, extraParams = {}) {
+      const url = new URL(path, window.location.href);
+      if (apiKey.value) {
+        url.searchParams.set('api_key', apiKey.value);
+      }
+      Object.entries(extraParams).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        url.searchParams.set(key, String(value));
+      });
+      return url.pathname + url.search;
+    }
+
     function formatSize(bytes) {
       if (!Number.isFinite(bytes)) return '';
       const units = ['B', 'KB', 'MB', 'GB'];
@@ -590,8 +602,8 @@ HTML_CONTENT = """<!doctype html>
       refreshList();
     }
 
-    async function downloadResult(jobId, outputName, headers, keyQuery) {
-      const response = await fetch(`/merge/${jobId}/result${keyQuery}`, {
+    async function downloadResult(jobId, outputName, headers) {
+      const response = await fetch(buildApiUrl(`/merge/${jobId}/result`), {
         headers,
       });
       if (!response.ok) {
@@ -611,12 +623,12 @@ HTML_CONTENT = """<!doctype html>
     }
 
     function trackJob(jobId, outputName, headers) {
-      const keyQuery = apiKey.value ? `?api_key=${encodeURIComponent(apiKey.value)}` : '';
-
       return new Promise((resolve, reject) => {
         let active = true;
         let eventSource;
         let pollTimer;
+        let lastRevision = -1;
+        let polling = false;
 
         const cleanup = () => {
           active = false;
@@ -649,6 +661,13 @@ HTML_CONTENT = """<!doctype html>
           const total = Number(payload.total_pages) || 0;
           const processed = Number(payload.processed_pages) || 0;
           const percentValue = Number(payload.percent);
+          if (Number.isFinite(Number(payload.revision))) {
+            lastRevision = Number(payload.revision);
+          }
+
+          const currentFile = typeof payload.current_file === 'string' && payload.current_file
+            ? payload.current_file
+            : '';
 
           if (statusText === 'queued') {
             setStatus('Merge job queued…', 'pending');
@@ -662,7 +681,10 @@ HTML_CONTENT = """<!doctype html>
                 ? percentValue
                 : (processed / total) * 100;
               updateProgress(computed);
-              setStatus(`Merging PDFs… ${processed}/${total} pages`, 'pending');
+              const label = currentFile
+                ? `Merging ${currentFile}… ${processed}/${total} pages`
+                : `Merging PDFs… ${processed}/${total} pages`;
+              setStatus(label, 'pending');
             } else {
               startIndeterminateProgress();
               setStatus('Merging PDFs…', 'pending');
@@ -675,7 +697,7 @@ HTML_CONTENT = """<!doctype html>
               if (total > 0) {
                 updateProgress(100);
               }
-              await downloadResult(jobId, payload.output_name || outputName, headers, keyQuery);
+              await downloadResult(jobId, payload.output_name || outputName, headers);
               setStatus('Merged successfully! Your download should begin automatically.', 'success');
               handleSuccess();
             } catch (error) {
@@ -691,9 +713,15 @@ HTML_CONTENT = """<!doctype html>
         };
 
         const pollOnce = async () => {
-          if (!active) return;
+          if (!active || polling) return;
+          polling = true;
           try {
-            const response = await fetch(`/merge/${jobId}${keyQuery}`, {
+            const extraParams = {};
+            if (lastRevision >= 0) {
+              extraParams.since = String(lastRevision);
+              extraParams.wait = '5';
+            }
+            const response = await fetch(buildApiUrl(`/merge/${jobId}`, extraParams), {
               headers,
             });
             if (!response.ok) {
@@ -703,6 +731,8 @@ HTML_CONTENT = """<!doctype html>
             await handleUpdate(data);
           } catch (error) {
             console.error('Polling error', error);
+          } finally {
+            polling = false;
           }
         };
 
@@ -713,7 +743,7 @@ HTML_CONTENT = """<!doctype html>
 
         if (typeof EventSource !== 'undefined') {
           try {
-            eventSource = new EventSource(`/merge/${jobId}/events${keyQuery}`);
+            eventSource = new EventSource(buildApiUrl(`/merge/${jobId}/events`));
             eventSource.onmessage = async (event) => {
               try {
                 const data = JSON.parse(event.data || '{}');

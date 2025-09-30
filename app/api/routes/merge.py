@@ -3,9 +3,10 @@ import io
 import json
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.dependencies.security import ApiKeyDependency
@@ -25,6 +26,49 @@ class JobState:
     error: Optional[str] = None
     result: Optional[bytes] = None
     listeners: set[asyncio.Queue[str]] = field(default_factory=set)
+    current_file: Optional[str] = None
+    revision: int = 0
+    updated_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+    def _bump_revision(self) -> None:
+        self.revision += 1
+        self.updated_at = datetime.now(timezone.utc).isoformat()
+
+    def mark_running(self) -> None:
+        self.status = "running"
+        self.error = None
+        self._bump_revision()
+
+    def mark_completed(self, result: bytes) -> None:
+        self.result = result
+        self.status = "completed"
+        if self.total_pages and self.processed_pages < self.total_pages:
+            self.processed_pages = self.total_pages
+        if self.total_pages:
+            self.percent = 100.0
+        self.current_file = None
+        self.error = None
+        self._bump_revision()
+
+    def mark_error(self, message: str) -> None:
+        self.status = "error"
+        self.error = message
+        self.current_file = None
+        self._bump_revision()
+
+    def update_progress(
+        self, processed: int, total: int, current_file: Optional[str]
+    ) -> None:
+        self.total_pages = total
+        self.processed_pages = processed
+        if current_file is not None:
+            self.current_file = current_file
+        elif processed >= total:
+            self.current_file = None
+        self.percent = round((processed / total * 100) if total else 0.0, 2)
+        self._bump_revision()
 
     def snapshot(self) -> Dict[str, object]:
         return {
@@ -36,6 +80,9 @@ class JobState:
             "error": self.error,
             "has_result": self.result is not None,
             "output_name": self.output_name,
+            "current_file": self.current_file,
+            "revision": self.revision,
+            "updated_at": self.updated_at,
         }
 
     def register_listener(self) -> asyncio.Queue[str]:
@@ -126,28 +173,25 @@ async def merge_pdf(
     async def _run_job() -> None:
         merger = PdfMergerService()
 
-        async def progress_callback(processed: int, total: int, _filename: str | None) -> None:
-            job.total_pages = total
-            job.processed_pages = processed
-            job.percent = round((processed / total * 100) if total else 0.0, 2)
+        async def progress_callback(
+            processed: int, total: int, filename: str | None
+        ) -> None:
+            job.update_progress(processed, total, filename)
             await _broadcast(job)
 
         try:
-            job.status = "running"
+            job.mark_running()
             await _broadcast(job)
             await merger.append_files(buffered_files, per_file_ranges, progress_callback)
-            job.result = merger.to_bytes()
-            job.status = "completed"
-            job.processed_pages = job.total_pages
-            job.percent = 100.0
+            result_bytes = merger.to_bytes()
+            job.mark_completed(result_bytes)
             await _broadcast(job)
         except HTTPException as exc:
-            job.status = "error"
-            job.error = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+            detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+            job.mark_error(detail)
             await _broadcast(job)
         except Exception as exc:  # pragma: no cover - defensive
-            job.status = "error"
-            job.error = str(exc)
+            job.mark_error(str(exc))
             await _broadcast(job)
 
     asyncio.create_task(_run_job())
@@ -156,8 +200,36 @@ async def merge_pdf(
 
 
 @router.get("/merge/{job_id}", dependencies=[ApiKeyDependency])
-async def get_job_status(job_id: str) -> JSONResponse:
+async def get_job_status(
+    job_id: str,
+    since: Optional[int] = Query(default=None, ge=0),
+    wait: float = Query(default=0.0, ge=0.0, le=30.0),
+) -> JSONResponse:
     job = _get_job(job_id)
+
+    should_wait = (
+        since is not None
+        and job.revision <= since
+        and wait > 0
+        and job.status not in {"completed", "error"}
+    )
+
+    if should_wait:
+        queue = job.register_listener()
+        try:
+            try:
+                data = await asyncio.wait_for(queue.get(), timeout=wait)
+            except asyncio.TimeoutError:
+                return JSONResponse(job.snapshot())
+        finally:
+            job.unregister_listener(queue)
+
+        try:
+            payload = json.loads(data)
+        except json.JSONDecodeError:  # pragma: no cover - defensive
+            payload = job.snapshot()
+        return JSONResponse(payload)
+
     return JSONResponse(job.snapshot())
 
 
