@@ -30,6 +30,7 @@ async def index(request: Request) -> HTMLResponse:
                 "paper_size": "A4",
                 "orientation": "portrait",
                 "fit_mode": "letterbox",
+                "engine": "pypdf",
             },
             "feature_flags": {
                 "api_key_required": bool(settings.api_key),

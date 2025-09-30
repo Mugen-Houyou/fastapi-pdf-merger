@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -17,6 +17,9 @@ async def merge_pdf(
         None, description='JSON list of page ranges per file, e.g. ["1-3,5",""]'
     ),
     output_name: Optional[str] = Form("merged.pdf"),
+    engine: Literal["pypdf", "pikepdf"] = Form(
+        "pypdf", description="PDF processing backend: 'pypdf' (default) or 'pikepdf'."
+    ),
 ) -> StreamingResponse:
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")
@@ -38,6 +41,6 @@ async def merge_pdf(
     while len(per_file_ranges) < len(files):
         per_file_ranges.append("")
 
-    merger = PdfMergerService()
+    merger = PdfMergerService(engine=engine)
     await merger.append_files(files, per_file_ranges)
     return merger.export(output_name)
