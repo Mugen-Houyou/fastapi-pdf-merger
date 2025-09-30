@@ -347,6 +347,45 @@ HTML_CONTENT = """<!doctype html>
       color: var(--accent);
     }
 
+    .progress {
+      margin-top: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.25);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress[hidden] {
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      transition: width 0.25s ease;
+    }
+
+    .progress-bar.indeterminate {
+      position: absolute;
+      width: 40%;
+      left: -40%;
+      animation: progress-indeterminate 1.2s ease-in-out infinite;
+    }
+
+    @keyframes progress-indeterminate {
+      0% {
+        left: -40%;
+      }
+      50% {
+        left: 60%;
+      }
+      100% {
+        left: 100%;
+      }
+    }
+
     @media (max-width: 640px) {
       body.app {
         padding: 24px 12px;
@@ -399,6 +438,16 @@ HTML_CONTENT = """<!doctype html>
         <button id=\"clearBtn\" type=\"button\" class=\"ghost\" disabled>Clear files</button>
         <span class=\"hint\">Page range example: <code>1-3,5</code> (leave empty for entire file)</span>
       </div>
+      <div id=\"progressWrapper\" class=\"progress\" hidden>
+        <div
+          id=\"progressBar\"
+          class=\"progress-bar\"
+          role=\"progressbar\"
+          aria-valuemin=\"0\"
+          aria-valuemax=\"100\"
+          aria-valuenow=\"0\"
+        ></div>
+      </div>
       <p id=\"status\" class=\"status\" role=\"status\" aria-live=\"polite\"></p>
     </section>
   </div>
@@ -412,6 +461,8 @@ HTML_CONTENT = """<!doctype html>
     const apiKey = document.getElementById('apiKey');
     const clearBtn = document.getElementById('clearBtn');
     const status = document.getElementById('status');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressBar = document.getElementById('progressBar');
 
     let files = [];
     let ranges = [];
@@ -431,6 +482,28 @@ HTML_CONTENT = """<!doctype html>
     function setStatus(message = '', type = 'info') {
       status.textContent = message;
       status.className = `status ${message ? type : ''}`.trim();
+    }
+
+    function resetProgress() {
+      progressWrapper.hidden = true;
+      progressBar.classList.remove('indeterminate');
+      progressBar.style.width = '0%';
+      progressBar.setAttribute('aria-valuenow', '0');
+    }
+
+    function startIndeterminateProgress() {
+      progressWrapper.hidden = false;
+      progressBar.classList.add('indeterminate');
+      progressBar.style.width = '100%';
+      progressBar.setAttribute('aria-valuenow', '0');
+    }
+
+    function updateProgress(percent) {
+      const value = Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0;
+      progressWrapper.hidden = false;
+      progressBar.classList.remove('indeterminate');
+      progressBar.style.width = `${value}%`;
+      progressBar.setAttribute('aria-valuenow', String(Math.round(value)));
     }
 
     function syncRangesFromInputs() {
@@ -517,6 +590,155 @@ HTML_CONTENT = """<!doctype html>
       refreshList();
     }
 
+    async function downloadResult(jobId, outputName, headers, keyQuery) {
+      const response = await fetch(`/merge/${jobId}/result${keyQuery}`, {
+        headers,
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Download failed with status ${response.status}`);
+      }
+      const blob = await response.blob();
+      const name = outputName || 'merged.pdf';
+      const anchor = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      anchor.href = url;
+      anchor.download = name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function trackJob(jobId, outputName, headers) {
+      const keyQuery = apiKey.value ? `?api_key=${encodeURIComponent(apiKey.value)}` : '';
+
+      return new Promise((resolve, reject) => {
+        let active = true;
+        let eventSource;
+        let pollTimer;
+
+        const cleanup = () => {
+          active = false;
+          if (eventSource) {
+            eventSource.close();
+            eventSource = undefined;
+          }
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = undefined;
+          }
+        };
+
+        const handleError = (error) => {
+          if (!active) return;
+          cleanup();
+          reject(error instanceof Error ? error : new Error(String(error)));
+        };
+
+        const handleSuccess = () => {
+          if (!active) return;
+          cleanup();
+          resolve();
+        };
+
+        const handleUpdate = async (payload) => {
+          if (!active || !payload) return;
+
+          const statusText = payload.status;
+          const total = Number(payload.total_pages) || 0;
+          const processed = Number(payload.processed_pages) || 0;
+          const percentValue = Number(payload.percent);
+
+          if (statusText === 'queued') {
+            setStatus('Merge job queued…', 'pending');
+            startIndeterminateProgress();
+            return;
+          }
+
+          if (statusText === 'running') {
+            if (total > 0) {
+              const computed = Number.isFinite(percentValue)
+                ? percentValue
+                : (processed / total) * 100;
+              updateProgress(computed);
+              setStatus(`Merging PDFs… ${processed}/${total} pages`, 'pending');
+            } else {
+              startIndeterminateProgress();
+              setStatus('Merging PDFs…', 'pending');
+            }
+            return;
+          }
+
+          if (statusText === 'completed') {
+            try {
+              if (total > 0) {
+                updateProgress(100);
+              }
+              await downloadResult(jobId, payload.output_name || outputName, headers, keyQuery);
+              setStatus('Merged successfully! Your download should begin automatically.', 'success');
+              handleSuccess();
+            } catch (error) {
+              handleError(error);
+            }
+            return;
+          }
+
+          if (statusText === 'error') {
+            const message = payload.error || 'Failed to merge PDFs.';
+            handleError(new Error(message));
+          }
+        };
+
+        const pollOnce = async () => {
+          if (!active) return;
+          try {
+            const response = await fetch(`/merge/${jobId}${keyQuery}`, {
+              headers,
+            });
+            if (!response.ok) {
+              throw new Error(`Status request failed with status ${response.status}`);
+            }
+            const data = await response.json();
+            await handleUpdate(data);
+          } catch (error) {
+            console.error('Polling error', error);
+          }
+        };
+
+        const startPolling = () => {
+          pollOnce();
+          pollTimer = window.setInterval(pollOnce, 1000);
+        };
+
+        if (typeof EventSource !== 'undefined') {
+          try {
+            eventSource = new EventSource(`/merge/${jobId}/events${keyQuery}`);
+            eventSource.onmessage = async (event) => {
+              try {
+                const data = JSON.parse(event.data || '{}');
+                await handleUpdate(data);
+              } catch (error) {
+                console.error('Failed to parse progress update', error);
+              }
+            };
+            eventSource.onerror = () => {
+              if (!active) return;
+              console.warn('SSE connection interrupted, falling back to polling.');
+              eventSource?.close();
+              eventSource = undefined;
+              startPolling();
+            };
+            return;
+          } catch (error) {
+            console.error('Unable to establish SSE connection', error);
+          }
+        }
+
+        startPolling();
+      });
+    }
+
     filesDiv.addEventListener('click', (event) => {
       const button = event.target.closest('button[data-action]');
       if (!button) return;
@@ -586,7 +808,9 @@ HTML_CONTENT = """<!doctype html>
 
       mergeBtn.disabled = true;
       mergeBtn.textContent = 'Merging…';
-      setStatus('Merging PDFs…', 'pending');
+      setStatus('Submitting merge job…', 'pending');
+      resetProgress();
+      startIndeterminateProgress();
 
       try {
         const response = await fetch('/merge', {
@@ -600,17 +824,14 @@ HTML_CONTENT = """<!doctype html>
           throw new Error(message || `Request failed with status ${response.status}`);
         }
 
-        const blob = await response.blob();
-        const downloadName = outputName.value || 'merged.pdf';
-        const anchor = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        anchor.href = url;
-        anchor.download = downloadName;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setStatus('Merged successfully! Your download should begin automatically.', 'success');
+        const payload = await response.json();
+        if (!payload || !payload.job_id) {
+          throw new Error('Unexpected response from server.');
+        }
+
+        const finalName = payload.output_name || outputName.value || 'merged.pdf';
+        setStatus('Merge job queued…', 'pending');
+        await trackJob(payload.job_id, finalName, headers);
       } catch (error) {
         console.error(error);
         const message = error instanceof Error ? error.message : 'Failed to merge PDFs.';
@@ -619,6 +840,7 @@ HTML_CONTENT = """<!doctype html>
       } finally {
         mergeBtn.disabled = false;
         mergeBtn.textContent = 'Merge PDFs';
+        resetProgress();
       }
     });
   </script>
