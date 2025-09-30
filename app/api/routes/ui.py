@@ -347,6 +347,43 @@ HTML_CONTENT = """<!doctype html>
       color: var(--accent);
     }
 
+    .progress {
+      display: none;
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.3);
+      overflow: hidden;
+      margin-top: 14px;
+    }
+
+    .progress.active {
+      display: block;
+    }
+
+    .progress-bar {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      animation: progress-indeterminate 1.2s ease-in-out infinite;
+      transform-origin: left;
+    }
+
+    @keyframes progress-indeterminate {
+      0% {
+        transform: translateX(-60%) scaleX(0.5);
+        opacity: 0.6;
+      }
+      50% {
+        transform: translateX(-10%) scaleX(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(120%) scaleX(0.5);
+        opacity: 0.6;
+      }
+    }
+
     @media (max-width: 640px) {
       body.app {
         padding: 24px 12px;
@@ -400,6 +437,17 @@ HTML_CONTENT = """<!doctype html>
         <span class=\"hint\">Page range example: <code>1-3,5</code> (leave empty for entire file)</span>
       </div>
       <p id=\"status\" class=\"status\" role=\"status\" aria-live=\"polite\"></p>
+      <div
+        id=\"progress\"
+        class=\"progress\"
+        role=\"progressbar\"
+        aria-hidden=\"true\"
+        aria-valuemin=\"0\"
+        aria-valuemax=\"100\"
+        aria-label=\"Merging PDFs\"
+      >
+        <div class=\"progress-bar\" aria-hidden=\"true\"></div>
+      </div>
     </section>
   </div>
 
@@ -412,6 +460,7 @@ HTML_CONTENT = """<!doctype html>
     const apiKey = document.getElementById('apiKey');
     const clearBtn = document.getElementById('clearBtn');
     const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
 
     let files = [];
     let ranges = [];
@@ -587,6 +636,9 @@ HTML_CONTENT = """<!doctype html>
       mergeBtn.disabled = true;
       mergeBtn.textContent = 'Merging…';
       setStatus('Merging PDFs…', 'pending');
+      progress.classList.add('active');
+      progress.setAttribute('aria-hidden', 'false');
+      progress.setAttribute('aria-busy', 'true');
 
       try {
         const response = await fetch('/merge', {
@@ -619,6 +671,9 @@ HTML_CONTENT = """<!doctype html>
       } finally {
         mergeBtn.disabled = false;
         mergeBtn.textContent = 'Merge PDFs';
+        progress.classList.remove('active');
+        progress.setAttribute('aria-hidden', 'true');
+        progress.removeAttribute('aria-busy');
       }
     });
   </script>
