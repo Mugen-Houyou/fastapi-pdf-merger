@@ -428,6 +428,19 @@ HTML_CONTENT = """<!doctype html>
       return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
     }
 
+    function formatSizeCompact(bytes) {
+      if (!Number.isFinite(bytes)) return '';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let size = bytes;
+      let unitIndex = 0;
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex++;
+      }
+      const decimals = unitIndex === 0 ? 0 : size >= 100 ? 0 : 2;
+      return `${size.toFixed(decimals)}${units[unitIndex]}`;
+    }
+
     function setStatus(message = '', type = 'info') {
       status.textContent = message;
       status.className = `status ${message ? type : ''}`.trim();
@@ -600,7 +613,30 @@ HTML_CONTENT = """<!doctype html>
           throw new Error(message || `Request failed with status ${response.status}`);
         }
 
-        const blob = await response.blob();
+        let blob;
+
+        if (response.body && 'getReader' in response.body) {
+          const reader = response.body.getReader();
+          const chunks = [];
+          let received = 0;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              chunks.push(value);
+              received += value.byteLength;
+              const progressText = formatSizeCompact(received);
+              setStatus(`Merging PDFs… ${progressText}`, 'pending');
+            }
+          }
+
+          blob = new Blob(chunks, {
+            type: response.headers.get('content-type') || 'application/pdf',
+          });
+        } else {
+          blob = await response.blob();
+        }
         const downloadName = outputName.value || 'merged.pdf';
         const anchor = document.createElement('a');
         const url = URL.createObjectURL(blob);
