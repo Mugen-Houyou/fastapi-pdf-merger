@@ -1,0 +1,28 @@
+<!-- app/templates/base.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>{% block title %}PDF Merger{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="app">
+  <div class="container">
+    {% block body %}{% endblock %}
+  </div>
+  <script>
+    // 서버값을 JS에서 쓰기 위한 전역(필요 최소한만)
+    window.__PDFMERGER__ = {
+      apiKeyRequired: {{ feature_flags.api_key_required | tojson }},
+      defaults: {{ defaults | tojson }},
+      endpoints: {
+        merge: "{{ url_for('merge_pdf') if url_for else '/merge' }}"
+      }
+    };
+  </script>
+  <script src="{{ url_for('static', path='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import health, merge, ui
 from app.core.config import settings
@@ -7,6 +8,7 @@ from app.core.config import settings
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Internal PDF Merger", version="1.0.0")
+    app.mount("/static", StaticFiles(directory="app/static"), name="static") 
 
     @app.middleware("http")
     async def limit_upload_size(request: Request, call_next):
