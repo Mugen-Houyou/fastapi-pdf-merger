@@ -1,12 +1,12 @@
 <!-- app/templates/index.html -->
 {% extends "base.html" %}
 
-{% block title %}PDF Merger{% endblock %}
+{% block title %}{{ t.page_title }}{% endblock %}
 
 {% block body %}
 <header class="hero">
-  <h1>PDF Merger</h1>
-  <p>Combine multiple PDF files into a single document and control the order and page ranges with ease.</p>
+  <h1>{{ t.hero_title }}</h1>
+  <p>{{ t.hero_description }}</p>
 </header>
 
 <section class="card">
@@ -14,55 +14,55 @@
     <input id="fileInput" type="file" accept="application/pdf" multiple />
     <div class="dropzone-inner">
       <div class="drop-icon">⬆️</div>
-      <strong>Drop PDF files here or click to browse</strong>
-      <p>Your files will stay on this device until you choose to merge them.</p>
+      <strong>{{ t.drop_instruction }}</strong>
+      <p>{{ t.drop_detail }}</p>
     </div>
   </label>
 
   <div id="files" class="file-list empty">
-    <p class="empty-state">No files added yet. Add PDFs above to configure their ranges.</p>
+    <p class="empty-state">{{ t.empty_state }}</p>
   </div>
 
   <div class="form-grid">
     <label>
-      Output filename
+      {{ t.output_label }}
       <input id="outputName" type="text" value="{{ defaults.output_name }}" placeholder="merged.pdf" />
     </label>
     <label>
-      API key
-      <input id="apiKey" type="text" placeholder="Optional - only if required" {% if not feature_flags.api_key_required %}disabled{% endif %}/>
+      {{ t.api_key_label }}
+      <input id="apiKey" type="text" placeholder="{{ t.api_key_placeholder }}" {% if not feature_flags.api_key_required %}disabled{% endif %}/>
     </label>
   </div>
 
   <!-- 용지/방향/맞춤 옵션이 있다면 여기에 select를 추가 -->
   <div class="form-grid" style="display: none;">
     <label>
-      Paper size
+      {{ t.paper_size_label }}
       <select id="paperSize">
-        <option value="A4" {% if defaults.paper_size == "A4" %}selected{% endif %}>A4</option>
-        <option value="Letter" {% if defaults.paper_size == "Letter" %}selected{% endif %}>Letter</option>
+        <option value="A4" {% if defaults.paper_size == "A4" %}selected{% endif %}>{{ t.paper_size_a4 }}</option>
+        <option value="Letter" {% if defaults.paper_size == "Letter" %}selected{% endif %}>{{ t.paper_size_letter }}</option>
       </select>
     </label>
     <label>
-      Orientation
+      {{ t.orientation_label }}
       <select id="orientation">
-        <option value="portrait" {% if defaults.orientation == "portrait" %}selected{% endif %}>Portrait</option>
-        <option value="landscape" {% if defaults.orientation == "landscape" %}selected{% endif %}>Landscape</option>
+        <option value="portrait" {% if defaults.orientation == "portrait" %}selected{% endif %}>{{ t.orientation_portrait }}</option>
+        <option value="landscape" {% if defaults.orientation == "landscape" %}selected{% endif %}>{{ t.orientation_landscape }}</option>
       </select>
     </label>
     <label>
-      Scale mode
+      {{ t.scale_mode_label }}
       <select id="fitMode">
-        <option value="letterbox" {% if defaults.fit_mode == "letterbox" %}selected{% endif %}>Letterbox (contain)</option>
-        <option value="crop" {% if defaults.fit_mode == "crop" %}selected{% endif %}>Crop (cover)</option>
+        <option value="letterbox" {% if defaults.fit_mode == "letterbox" %}selected{% endif %}>{{ t.scale_mode_letterbox }}</option>
+        <option value="crop" {% if defaults.fit_mode == "crop" %}selected{% endif %}>{{ t.scale_mode_crop }}</option>
       </select>
     </label>
   </div>
 
   <div class="actions">
-    <button id="mergeBtn" class="primary">Merge PDFs</button>
-    <button id="clearBtn" type="button" class="ghost" disabled>Clear files</button>
-    <span class="hint">Page range example: <code>1-3,5</code> (leave empty for entire file)</span>
+    <button id="mergeBtn" class="primary">{{ t.merge_button }}</button>
+    <button id="clearBtn" type="button" class="ghost" disabled>{{ t.clear_button }}</button>
+    <span class="hint">{{ t.range_hint_html | safe }}</span>
   </div>
   <p id="status" class="status" role="status" aria-live="polite"></p>
 </section>

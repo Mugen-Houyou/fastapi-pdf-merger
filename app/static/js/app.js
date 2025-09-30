@@ -15,10 +15,27 @@
   const orientation = $('#orientation');
   const fitMode = $('#fitMode');
 
-  const { apiKeyRequired, defaults, endpoints } = window.__PDFMERGER__ || {
+  const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en' } = window.__PDFMERGER__ || {
     apiKeyRequired: false,
     defaults: { output_name: 'merged.pdf', paper_size: 'A4', orientation: 'portrait', fit_mode: 'letterbox' },
-    endpoints: { merge: '/merge' }
+    endpoints: { merge: '/merge' },
+    i18n: {},
+    locale: 'en'
+  };
+
+  const translate = (key, params = {}) => {
+    const parts = key.split('.');
+    let value = i18n;
+    for (const part of parts) {
+      if (value && typeof value === 'object' && part in value) {
+        value = value[part];
+      } else {
+        value = undefined;
+        break;
+      }
+    }
+    if (typeof value !== 'string') return key;
+    return value.replace(/\{(\w+)\}/g, (_, token) => (token in params ? params[token] : `{${token}}`));
   };
 
   // defaults 적용 (SSR에서 이미 넣어주지만, JS 초기화 보강)
@@ -57,7 +74,7 @@
 
     if (files.length === 0) {
       filesDiv.classList.add('empty');
-      filesDiv.innerHTML = '<p class="empty-state">No files added yet. Add PDFs above to configure their ranges.</p>';
+      filesDiv.innerHTML = `<p class="empty-state">${translate('messages.empty')}</p>`;
       clearBtn.disabled = true;
       return;
     }
@@ -75,13 +92,13 @@
             <span class="file-size">${formatSize(file.size)}</span>
           </div>
           <div class="file-actions">
-            <button class="icon-btn" data-action="up" data-index="${index}" aria-label="Move ${file.name} up">↑</button>
-            <button class="icon-btn" data-action="down" data-index="${index}" aria-label="Move ${file.name} down">↓</button>
-            <button class="icon-btn danger" data-action="remove" data-index="${index}" aria-label="Remove ${file.name}">Remove</button>
+            <button class="icon-btn" data-action="up" data-index="${index}" aria-label="${translate('aria.move_up', { name: file.name })}">↑</button>
+            <button class="icon-btn" data-action="down" data-index="${index}" aria-label="${translate('aria.move_down', { name: file.name })}">↓</button>
+            <button class="icon-btn danger" data-action="remove" data-index="${index}" aria-label="${translate('aria.remove', { name: file.name })}">${translate('buttons.remove')}</button>
           </div>
         </div>
         <div>
-          <input type="text" class="range-input" placeholder="Page ranges e.g. 1-3,5" data-idx="${index}" value="${ranges[index] || ''}" />
+          <input type="text" class="range-input" placeholder="${translate('placeholders.range')}" data-idx="${index}" value="${ranges[index] || ''}" />
         </div>
       `;
       frag.appendChild(row);
@@ -93,7 +110,7 @@
   const addFiles = (newFiles) => {
     if (!newFiles?.length) return;
     const incoming = Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-    if (incoming.length === 0) { setStatus('Only PDF files are supported.', 'error'); return; }
+    if (incoming.length === 0) { setStatus(translate('messages.pdf_only'), 'error'); return; }
     setStatus('');
     incoming.forEach(f => { files.push(f); ranges.push(''); });
     refreshList();
@@ -126,10 +143,10 @@
   dropBox.addEventListener('dragleave', () => { dropBox.classList.remove('is-dragover'); });
   dropBox.addEventListener('drop', (e) => { e.preventDefault(); dropBox.classList.remove('is-dragover'); addFiles(e.dataTransfer.files || []); });
 
-  clearBtn.addEventListener('click', () => { files = []; ranges = []; refreshList(); setStatus('Cleared selected files.', 'info'); });
+  clearBtn.addEventListener('click', () => { files = []; ranges = []; refreshList(); setStatus(translate('messages.cleared'), 'info'); });
 
   mergeBtn.addEventListener('click', async () => {
-    if (files.length === 0) { alert('Select at least one PDF.'); return; }
+    if (files.length === 0) { alert(translate('messages.select_one')); return; }
 
     // collect ranges
     document.querySelectorAll('.range-input').forEach(inp => {
@@ -151,8 +168,8 @@
     if (apiKeyRequired && apiKey?.value) headers['X-API-KEY'] = apiKey.value;
 
     mergeBtn.disabled = true;
-    mergeBtn.textContent = 'Merging…';
-    setStatus('Merging PDFs…', 'pending');
+    mergeBtn.textContent = translate('buttons.merging');
+    setStatus(translate('messages.merging'), 'pending');
 
     try {
       const resp = await fetch(endpoints.merge || '/merge', { method: 'POST', body: form, headers });
@@ -172,7 +189,7 @@
           if (value) {
             chunks.push(value);
             received += value.byteLength;
-            setStatus(`Merging PDFs… ${formatSizeCompact(received)}`, 'pending');
+            setStatus(translate('messages.merging_progress', { size: formatSizeCompact(received) }), 'pending');
           }
         }
         blob = new Blob(chunks, { type: resp.headers.get('content-type') || 'application/pdf' });
@@ -188,15 +205,16 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setStatus('Merged successfully! Your download should begin automatically.', 'success');
+      setStatus(translate('messages.merged'), 'success');
     } catch (err) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : 'Failed to merge PDFs.';
-      alert(`Failed: ${msg}`);
+      const defaultError = translate('messages.merge_failed');
+      const msg = err instanceof Error && err.message ? err.message : defaultError;
+      alert(translate('messages.failed_prefix', { message: msg }));
       setStatus(msg, 'error');
     } finally {
       mergeBtn.disabled = false;
-      mergeBtn.textContent = 'Merge PDFs';
+      mergeBtn.textContent = translate('buttons.merge');
     }
   });
 })();
