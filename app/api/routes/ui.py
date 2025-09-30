@@ -226,13 +226,15 @@ HTML_CONTENT = """<!doctype html>
       border: 1px solid rgba(148, 163, 184, 0.48);
       background: rgba(248, 250, 252, 0.8);
       font-size: 0.95rem;
-      transition: border 0.2s ease, box-shadow 0.2s ease;
+      transition: border 0.2s ease, box-shadow 0.2s ease;  
+      color: var(--text);
     }
 
     .range-input:focus {
       border-color: rgba(37, 99, 235, 0.6);
       outline: none;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18); 
+      color: var(--text);
     }
 
     .form-grid {
@@ -240,6 +242,7 @@ HTML_CONTENT = """<!doctype html>
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 18px;
       margin-top: 24px;
+      color: var(--text);
     }
 
     .form-grid label {
@@ -257,6 +260,7 @@ HTML_CONTENT = """<!doctype html>
       background: rgba(255, 255, 255, 0.9);
       font-size: 0.95rem;
       transition: border 0.2s ease, box-shadow 0.2s ease;
+      color: var(--text);
     }
 
     .form-grid input[type=text]:focus {
