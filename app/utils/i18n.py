@@ -122,7 +122,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "scale_mode_crop": "크롭(채우기)",
             "merge_button": "💕 PDF 병합",
             "reverse_button": "순서 거꾸로",
-            "clear_button": "파일 지우기",
+            "clear_button": "전체 목록 지우기",
             "range_hint_html": "페이지 범위 예시: <code>1-3,5</code> (비워두면 전체 페이지)",
             "range_placeholder": "페이지 범위 예: 1-3,5",
         },
@@ -130,7 +130,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "buttons": {
                 "merge": "💕 PDF 병합",
                 "merging": "병합 중…",
-                "clear": "파일 지우기",
+                "clear": "전체 목록 지우기",
                 "remove": "삭제",
                 "reverse": "순서 거꾸로",
             },
