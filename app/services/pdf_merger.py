@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass
-from typing import Iterable, Literal, Optional, cast
+from typing import Iterable, Literal, Optional, Tuple, cast
 
 from fastapi import HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from anyio import to_thread
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter, Transformation
+from pypdf._page import PageObject
 
 try:  # pragma: no cover - optional dependency import guard
     import pikepdf  # type: ignore
@@ -16,6 +17,32 @@ except ImportError:  # pragma: no cover - optional dependency import guard
 
 from app.core.concurrency import get_pdf_merge_limiter
 from app.utils.page_ranges import parse_page_ranges
+
+
+PaperSize = Literal["A4", "Letter"]
+Orientation = Literal["portrait", "landscape"]
+FitMode = Literal["letterbox", "crop"]
+
+
+@dataclass(frozen=True)
+class LayoutOptions:
+    paper_size: Optional[PaperSize] = None
+    orientation: Optional[Orientation] = None
+    fit_mode: Optional[FitMode] = None
+
+    @property
+    def is_passthrough(self) -> bool:
+        return self.paper_size is None
+
+
+_PAGE_DIMENSIONS: dict[tuple[PaperSize, Orientation], Tuple[float, float]] = {
+    ("A4", "portrait"): (595.2755905511812, 841.8897637795277),
+    ("A4", "landscape"): (841.8897637795277, 595.2755905511812),
+    ("Letter", "portrait"): (612.0, 792.0),
+    ("Letter", "landscape"): (792.0, 612.0),
+}
+
+_DEFAULT_FIT_MODE: FitMode = "letterbox"
 
 
 class PdfMergerService:
@@ -31,46 +58,72 @@ class PdfMergerService:
                     status_code=500,
                     detail="pikepdf backend is not available on this server.",
                 )
-            self.engine = engine
-            self.writer = pikepdf.Pdf.new()
-        else:
-            self.engine = "pypdf"
-            self.writer = PdfWriter()
+        self.engine = engine
+        self._pages: list[PageObject] = []
 
     @dataclass
     class _Payload:
         filename: str
         data: bytes
         ranges: str
+        options: LayoutOptions
 
-    async def append_files(self, files: Iterable[UploadFile], ranges: list[str]) -> None:
+    @staticmethod
+    def _normalize_options(raw: Optional[dict[str, str]]) -> LayoutOptions:
+        if not raw:
+            return LayoutOptions()
+
+        paper_lookup = {"a4": "A4", "letter": "Letter"}
+        orientation_lookup = {"portrait": "portrait", "landscape": "landscape"}
+        fit_lookup = {"letterbox": "letterbox", "crop": "crop"}
+
+        def normalize(value: Optional[str], table: dict[str, str]) -> Optional[str]:
+            token = str(value or "").strip().lower()
+            if not token or token == "auto":
+                return None
+            return table.get(token)
+
+        paper = normalize(raw.get("paper_size"), paper_lookup)
+        orientation = normalize(raw.get("orientation"), orientation_lookup)
+        fit_mode = normalize(raw.get("fit_mode"), fit_lookup)
+
+        return LayoutOptions(
+            paper_size=cast(Optional[PaperSize], paper),
+            orientation=cast(Optional[Orientation], orientation),
+            fit_mode=cast(Optional[FitMode], fit_mode),
+        )
+
+    async def append_files(
+        self,
+        files: Iterable[UploadFile],
+        ranges: list[str],
+        options: Optional[list[dict[str, str]]] = None,
+    ) -> None:
         payloads: list[PdfMergerService._Payload] = []
+        options = options or []
         for index, upload in enumerate(files):
             data = await upload.read()
             if len(data) == 0:
                 raise HTTPException(status_code=400, detail=f"Empty file: {upload.filename}")
 
             wanted_ranges = ranges[index] if index < len(ranges) else ""
+            raw_options = options[index] if index < len(options) else None
             payloads.append(
                 PdfMergerService._Payload(
                     filename=upload.filename or "<unnamed>",
                     data=data,
                     ranges=wanted_ranges or "",
+                    options=self._normalize_options(raw_options),
                 )
             )
 
-        await to_thread.run_sync(
+        prepared_pages = await to_thread.run_sync(
             self._process_payloads, payloads, limiter=get_pdf_merge_limiter()
         )
+        self._pages.extend(prepared_pages)
 
-    def _process_payloads(self, payloads: list[_Payload]) -> None:
-        if self.engine == "pikepdf":
-            self._process_payloads_with_pikepdf(payloads)
-        else:
-            self._process_payloads_with_pypdf(payloads)
-
-    def _process_payloads_with_pypdf(self, payloads: list[_Payload]) -> None:
-        writer = cast(PdfWriter, self.writer)
+    def _process_payloads(self, payloads: list[_Payload]) -> list[PageObject]:
+        pages: list[PageObject] = []
         for payload in payloads:
             try:
                 pdf = PdfReader(io.BytesIO(payload.data))
@@ -88,49 +141,77 @@ class PdfMergerService:
 
             indices = parse_page_ranges(payload.ranges, len(pdf.pages))
             for page_index in indices:
-                writer.add_page(pdf.pages[page_index])
+                page = cast(PageObject, pdf.pages[page_index])
+                pages.append(self._render_page(page, payload.options))
+        return pages
 
-    def _process_payloads_with_pikepdf(self, payloads: list[_Payload]) -> None:
-        if pikepdf is None:  # pragma: no cover - defensive
-            raise HTTPException(
-                status_code=500,
-                detail="pikepdf backend is not available on this server.",
-            )
+    @staticmethod
+    def _infer_orientation(page: PageObject) -> Orientation:
+        mediabox = page.mediabox
+        original_width = float(mediabox.width or 0)
+        original_height = float(mediabox.height or 0)
+        if original_width <= 0 or original_height <= 0:
+            return "portrait"
+        return "landscape" if original_width >= original_height else "portrait"
 
-        writer = cast("pikepdf.Pdf", self.writer)
+    def _target_dimensions(self, paper_size: PaperSize, orientation: Orientation) -> Tuple[float, float]:
+        return _PAGE_DIMENSIONS[(paper_size, orientation)]
 
-        for payload in payloads:
-            try:
-                with pikepdf.open(io.BytesIO(payload.data)) as pdf:
-                    if pdf.is_encrypted:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Encrypted PDF not supported: {payload.filename}",
-                        )
+    def _render_page(self, page: PageObject, options: LayoutOptions) -> PageObject:
+        if options.is_passthrough:
+            return page
 
-                    indices = parse_page_ranges(payload.ranges, len(pdf.pages))
-                    for page_index in indices:
-                        writer.pages.append(pdf.pages[page_index])
-            except HTTPException:
-                raise
-            except Exception as exc:  # pragma: no cover - defensive
-                if pikepdf is not None and isinstance(exc, pikepdf.PasswordError):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Encrypted PDF not supported: {payload.filename}",
-                    ) from exc
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Failed to read '{payload.filename}': {exc}",
-                ) from exc
+        paper_size = cast(PaperSize, options.paper_size)
+        orientation = cast(Orientation, options.orientation or self._infer_orientation(page))
+        fit_mode = cast(FitMode, options.fit_mode or _DEFAULT_FIT_MODE)
+        target_width, target_height = self._target_dimensions(paper_size, orientation)
+        new_page = PageObject.create_blank_page(width=target_width, height=target_height)
+
+        mediabox = page.mediabox
+        original_width = float(mediabox.width or target_width)
+        original_height = float(mediabox.height or target_height)
+
+        if original_width <= 0 or original_height <= 0:
+            original_width = target_width
+            original_height = target_height
+
+        if fit_mode == "crop":
+            scale_factor = max(target_width / original_width, target_height / original_height)
+        else:
+            scale_factor = min(target_width / original_width, target_height / original_height)
+
+        if not (scale_factor and scale_factor > 0):
+            scale_factor = 1.0
+
+        scaled_width = original_width * scale_factor
+        scaled_height = original_height * scale_factor
+
+        offset_x = (target_width - scaled_width) / 2
+        offset_y = (target_height - scaled_height) / 2
+
+        transform = (
+            Transformation()
+            .translate(-float(mediabox.left), -float(mediabox.bottom))
+            .scale(scale_factor)
+            .translate(offset_x, offset_y)
+        )
+        new_page.merge_transformed_page(page, transform, expand=False)
+        return new_page
 
     def export(self, output_name: Optional[str]) -> StreamingResponse:
+        writer = PdfWriter()
+        for page in self._pages:
+            writer.add_page(page)
+
         buffer = io.BytesIO()
-        if self.engine == "pikepdf":
-            cast("pikepdf.Pdf", self.writer).save(buffer)
-        else:
-            cast(PdfWriter, self.writer).write(buffer)
+        writer.write(buffer)
         buffer.seek(0)
+
+        if self.engine == "pikepdf" and pikepdf is not None:
+            with pikepdf.open(buffer) as pdf:
+                buffer = io.BytesIO()
+                pdf.save(buffer)
+            buffer.seek(0)
 
         final_name = output_name or "merged.pdf"
         if not final_name.lower().endswith(".pdf"):

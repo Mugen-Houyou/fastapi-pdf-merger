@@ -12,13 +12,9 @@
   const clearBtn = $('#clearBtn');
   const status = $('#status');
 
-  const paperSize = $('#paperSize');
-  const orientation = $('#orientation');
-  const fitMode = $('#fitMode');
-
   const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDFMERGER__ || {
     apiKeyRequired: false,
-    defaults: { output_name: 'merged.pdf', paper_size: 'A4', orientation: 'portrait', fit_mode: 'letterbox' },
+    defaults: { output_name: 'merged.pdf', paper_size: 'auto', orientation: 'auto', fit_mode: 'auto' },
     endpoints: { merge: '/merge' },
     i18n: {},
     locale: 'en',
@@ -43,12 +39,10 @@
   // defaults 적용 (SSR에서 이미 넣어주지만, JS 초기화 보강)
   if (outputName && defaults.output_name) outputName.value = defaults.output_name;
   if (engine && defaults.engine) engine.value = defaults.engine;
-  if (paperSize && defaults.paper_size) paperSize.value = defaults.paper_size;
-  if (orientation && defaults.orientation) orientation.value = defaults.orientation;
-  if (fitMode && defaults.fit_mode) fitMode.value = defaults.fit_mode;
 
   let files = [];
   let ranges = [];
+  let fileOptions = [];
   let fileIdCounter = 0;
 
   const ensureFileId = (file) => {
@@ -148,17 +142,71 @@
       main.appendChild(handle);
       main.appendChild(body);
 
-      const rangeWrapper = document.createElement('div');
+      const side = document.createElement('div');
+      side.className = 'file-side';
+
+      const rangeField = document.createElement('label');
+      rangeField.className = 'file-field';
+      const rangeLabel = document.createElement('span');
+      rangeLabel.className = 'field-label';
       const rangeInput = document.createElement('input');
       rangeInput.type = 'text';
       rangeInput.className = 'range-input';
       rangeInput.autocomplete = 'off';
-      rangeWrapper.appendChild(rangeInput);
+      rangeField.appendChild(rangeLabel);
+      rangeField.appendChild(rangeInput);
+
+      const optionsWrapper = document.createElement('div');
+      optionsWrapper.className = 'file-options';
+
+      const makeSelect = (key, options) => {
+        const wrapper = document.createElement('label');
+        wrapper.className = 'file-field';
+        const title = document.createElement('span');
+        title.className = 'field-label';
+        const select = document.createElement('select');
+        select.className = 'option-select';
+        select.dataset.key = key;
+        options.forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          select.appendChild(opt);
+        });
+        // wrapper.appendChild(title);
+        wrapper.appendChild(select);
+        optionsWrapper.appendChild(wrapper);
+        return { wrapper, select, labelEl: title };
+      };
+
+      const selects = {
+        rangeLabel,
+        rangeInput,
+        paper: makeSelect('paper_size', [
+          { value: 'auto', label: translate('options.paper_size.auto') },
+          { value: 'A4', label: translate('options.paper_size.A4') },
+          { value: 'Letter', label: translate('options.paper_size.Letter') },
+        ]),
+        orientation: makeSelect('orientation', [
+          { value: 'auto', label: translate('options.orientation.auto') },
+          { value: 'portrait', label: translate('options.orientation.portrait') },
+          { value: 'landscape', label: translate('options.orientation.landscape') },
+        ]),
+        fit: makeSelect('fit_mode', [
+          { value: 'auto', label: translate('options.fit_mode.auto') },
+          { value: 'letterbox', label: translate('options.fit_mode.letterbox') },
+          { value: 'crop', label: translate('options.fit_mode.crop') },
+        ]),
+      };
+
+      side.appendChild(rangeField);
+      actions.appendChild(optionsWrapper);
 
       row.appendChild(main);
-      row.appendChild(rangeWrapper);
+      row.appendChild(side);
 
       row.__structureReady = true;
+      row.__widgets = selects;
       return row;
     };
 
@@ -192,13 +240,34 @@
         removeBtn.dataset.index = String(index);
         removeBtn.setAttribute('aria-label', translate('aria.remove', { name: file.name }));
         removeBtn.textContent = translate('buttons.remove');
+        removeBtn.style.marginRight = '1em';
       }
 
-      const rangeInput = row.querySelector('.range-input');
-      if (rangeInput) {
-        rangeInput.placeholder = translate('placeholders.range');
-        rangeInput.dataset.idx = String(index);
-        rangeInput.value = ranges[index] || '';
+      const widgets = row.__widgets;
+      if (widgets) {
+        const defaultOptions = createDefaultOptions();
+        const optionsForFile = fileOptions[index] || defaultOptions;
+        if (widgets.rangeLabel) widgets.rangeLabel.textContent = translate('labels.range');
+        if (widgets.rangeInput) {
+          widgets.rangeInput.placeholder = translate('placeholders.range');
+          widgets.rangeInput.dataset.idx = String(index);
+          widgets.rangeInput.value = ranges[index] || '';
+        }
+        if (widgets.paper?.labelEl) widgets.paper.labelEl.textContent = translate('labels.paper_size');
+        if (widgets.paper?.select) {
+          widgets.paper.select.dataset.idx = String(index);
+          widgets.paper.select.value = optionsForFile.paper_size || defaultOptions.paper_size;
+        }
+        if (widgets.orientation?.labelEl) widgets.orientation.labelEl.textContent = translate('labels.orientation');
+        if (widgets.orientation?.select) {
+          widgets.orientation.select.dataset.idx = String(index);
+          widgets.orientation.select.value = optionsForFile.orientation || defaultOptions.orientation;
+        }
+        if (widgets.fit?.labelEl) widgets.fit.labelEl.textContent = translate('labels.fit_mode');
+        if (widgets.fit?.select) {
+          widgets.fit.select.dataset.idx = String(index);
+          widgets.fit.select.value = optionsForFile.fit_mode || defaultOptions.fit_mode;
+        }
       }
 
       return row;
@@ -247,6 +316,12 @@
     });
   };
 
+  const createDefaultOptions = () => ({
+    paper_size: defaults.paper_size || 'auto',
+    orientation: defaults.orientation || 'auto',
+    fit_mode: defaults.fit_mode || 'auto',
+  });
+
   const addFiles = (newFiles) => {
     if (!newFiles?.length) return;
     const incoming = Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
@@ -256,11 +331,17 @@
       ensureFileId(f);
       files.push(f);
       ranges.push('');
+      fileOptions.push(createDefaultOptions());
     });
     refreshList();
   };
 
-  const removeFile = (i) => { files.splice(i,1); ranges.splice(i,1); refreshList(); };
+  const removeFile = (i) => {
+    files.splice(i,1);
+    ranges.splice(i,1);
+    fileOptions.splice(i,1);
+    refreshList();
+  };
 
   filesDiv.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-action]');
@@ -277,8 +358,10 @@
     if (to > files.length) to = files.length;
     const [movedFile] = files.splice(from, 1);
     const [movedRange] = ranges.splice(from, 1);
+    const [movedOptions] = fileOptions.splice(from, 1);
     files.splice(to, 0, movedFile);
     ranges.splice(to, 0, movedRange);
+    fileOptions.splice(to, 0, movedOptions);
     refreshList();
   };
 
@@ -379,13 +462,29 @@
     if (!Number.isNaN(i)) ranges[i] = input.value;
   });
 
+  filesDiv.addEventListener('change', (e) => {
+    const select = e.target;
+    if (!select.classList.contains('option-select')) return;
+    const i = Number(select.dataset.idx);
+    const key = select.dataset.key;
+    if (Number.isNaN(i) || !key) return;
+    const target = fileOptions[i] || (fileOptions[i] = createDefaultOptions());
+    target[key] = select.value;
+  });
+
   fileInput.addEventListener('change', (e) => { addFiles(e.target.files || []); fileInput.value = ''; });
 
   dropBox.addEventListener('dragover', (e) => { e.preventDefault(); dropBox.classList.add('is-dragover'); });
   dropBox.addEventListener('dragleave', () => { dropBox.classList.remove('is-dragover'); });
   dropBox.addEventListener('drop', (e) => { e.preventDefault(); dropBox.classList.remove('is-dragover'); addFiles(e.dataTransfer.files || []); });
 
-  clearBtn.addEventListener('click', () => { files = []; ranges = []; refreshList(); setStatus(translate('messages.cleared'), 'info'); });
+  clearBtn.addEventListener('click', () => {
+    files = [];
+    ranges = [];
+    fileOptions = [];
+    refreshList();
+    setStatus(translate('messages.cleared'), 'info');
+  });
 
   mergeBtn.addEventListener('click', async () => {
     if (files.length === 0) { alert(translate('messages.select_one')); return; }
@@ -402,10 +501,21 @@
     if (outputName?.value) form.append('output_name', outputName.value);
     if (engine?.value) form.append('engine', engine.value);
 
-    // 추가 옵션 (A4/Letter, orientation, fit_mode)
-    if (paperSize?.value) form.append('paper_size', paperSize.value);
-    if (orientation?.value) form.append('orientation', orientation.value);
-    if (fitMode?.value) form.append('fit_mode', fitMode.value);
+    const latestOptions = Array.from(document.querySelectorAll('.file-row')).map((row) => {
+      const idx = Number(row.dataset.index);
+      const existing = fileOptions[idx] || createDefaultOptions();
+      const selects = row.querySelectorAll('.option-select');
+      const next = { ...existing };
+      selects.forEach((select) => {
+        const key = select.dataset.key;
+        if (!key) return;
+        next[key] = select.value;
+      });
+      return next;
+    });
+
+    fileOptions = latestOptions;
+    form.append('options', JSON.stringify(latestOptions));
 
     const headers = {};
     if (apiKeyRequired && apiKey?.value) headers['X-API-KEY'] = apiKey.value;

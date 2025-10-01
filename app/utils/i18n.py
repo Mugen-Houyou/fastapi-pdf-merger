@@ -68,6 +68,29 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "placeholders": {
                 "range": "Page ranges e.g. 1-3,5",
             },
+            "labels": {
+                "range": "Page ranges",
+                "paper_size": "Paper size",
+                "orientation": "Orientation",
+                "fit_mode": "Scale mode",
+            },
+            "options": {
+                "paper_size": {
+                    "auto": "Auto",
+                    "A4": "A4",
+                    "Letter": "Letter",
+                },
+                "orientation": {
+                    "auto": "Auto",
+                    "portrait": "Portrait",
+                    "landscape": "Landscape",
+                },
+                "fit_mode": {
+                    "auto": "Auto",
+                    "letterbox": "Letterbox (contain)",
+                    "crop": "Crop (cover)",
+                },
+            },
         },
     },
     "ko": {
@@ -87,7 +110,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "engine_pikepdf": "pikepdf (빠른 C++ 백엔드)",
             "paper_size_label": "용지 크기",
             "paper_size_a4": "A4",
-            "paper_size_letter": "레터",
+            "paper_size_letter": "U.S. 레터",
             "orientation_label": "방향",
             "orientation_portrait": "세로",
             "orientation_landscape": "가로",
@@ -123,6 +146,29 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             },
             "placeholders": {
                 "range": "페이지 범위 예: 1-3,5",
+            },
+            "labels": {
+                "range": "페이지 범위",
+                "paper_size": "용지 크기",
+                "orientation": "방향",
+                "fit_mode": "배치 방식",
+            },
+            "options": {
+                "paper_size": {
+                    "auto": "자동",
+                    "A4": "A4",
+                    "Letter": "U.S. 레터",
+                },
+                "orientation": {
+                    "auto": "자동",
+                    "portrait": "세로",
+                    "landscape": "가로",
+                },
+                "fit_mode": {
+                    "auto": "자동",
+                    "letterbox": "레터박스(전체 보기)",
+                    "crop": "크롭(채우기)",
+                },
             },
         },
     },
