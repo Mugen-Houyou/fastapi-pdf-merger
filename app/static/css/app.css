@@ -91,6 +91,54 @@ body.app {
     pointer-events: none;
 }
 
+.global-controls {
+    margin-top: 24px;
+    padding: 18px 20px;
+    border-radius: 18px;
+    background: rgba(148, 163, 184, .12);
+    border: 1px solid rgba(148, 163, 184, .3);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.global-controls-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 18px;
+}
+
+.global-controls-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.global-controls-description {
+    font-size: .85rem;
+    color: var(--muted);
+}
+
+.global-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.global-controls-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: .85rem;
+    color: var(--muted);
+}
+
+.global-controls-grid label span {
+    font-weight: 600;
+    color: var(--text);
+}
+
 .upload-limit {
     margin-top: 12px;
     color: var(--muted);
@@ -112,7 +160,7 @@ body.app {
 }
 
 .file-list {
-    margin: 28px 0 14px;
+    margin: 20px 0 14px;
     display: flex;
     flex-direction: column;
     gap: 12px;

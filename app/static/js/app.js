@@ -12,6 +12,9 @@
   const clearBtn = $('#clearBtn');
   const reverseBtn = $('#reverseBtn');
   const status = $('#status');
+  const globalPaper = $('#globalPaper');
+  const globalOrientation = $('#globalOrientation');
+  const globalFit = $('#globalFit');
 
   const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDFMERGER__ || {
     apiKeyRequired: false,
@@ -23,6 +26,12 @@
   };
 
   const ROTATION_ORIENTATIONS = new Set(['rotate90', 'rotate180', 'rotate270']);
+
+  let globalOptions = {
+    paper_size: defaults.paper_size || 'auto',
+    orientation: defaults.orientation || 'auto',
+    fit_mode: defaults.fit_mode || 'auto',
+  };
 
   const translate = (key, params = {}) => {
     const parts = key.split('.');
@@ -332,11 +341,51 @@
     });
   };
 
-  const createDefaultOptions = () => ({
-    paper_size: defaults.paper_size || 'auto',
-    orientation: defaults.orientation || 'auto',
-    fit_mode: defaults.fit_mode || 'auto',
-  });
+  const createDefaultOptions = () => {
+    const orientation = globalOptions.orientation || 'auto';
+    return {
+      paper_size: globalOptions.paper_size || 'auto',
+      orientation,
+      fit_mode: ROTATION_ORIENTATIONS.has(orientation)
+        ? 'auto'
+        : (globalOptions.fit_mode || 'auto'),
+    };
+  };
+
+  const syncGlobalControls = () => {
+    if (globalPaper) globalPaper.value = globalOptions.paper_size || 'auto';
+    if (globalOrientation) globalOrientation.value = globalOptions.orientation || 'auto';
+    if (globalFit) {
+      const rotation = ROTATION_ORIENTATIONS.has(globalOptions.orientation);
+      if (rotation) {
+        globalFit.value = 'auto';
+        globalFit.disabled = true;
+      } else {
+        globalFit.disabled = false;
+        globalFit.value = globalOptions.fit_mode || 'auto';
+      }
+    }
+  };
+
+  const applyGlobalChange = (key, value, { forceFitAuto = false } = {}) => {
+    globalOptions = { ...globalOptions, [key]: value };
+    if (forceFitAuto) {
+      globalOptions.fit_mode = 'auto';
+    }
+
+    const previousOptions = fileOptions.slice();
+    fileOptions = files.map((_, index) => {
+      const existing = previousOptions[index]
+        ? { ...previousOptions[index] }
+        : createDefaultOptions();
+      const next = { ...existing, [key]: value };
+      if (forceFitAuto) next.fit_mode = 'auto';
+      return next;
+    });
+
+    refreshList();
+    syncGlobalControls();
+  };
 
   const addFiles = (newFiles) => {
     if (!newFiles?.length) return;
@@ -350,6 +399,7 @@
       fileOptions.push(createDefaultOptions());
     });
     refreshList();
+    syncGlobalControls();
   };
 
   const removeFile = (i) => {
@@ -513,12 +563,20 @@
       if (files.length <= 1) return;
       files.reverse();
       ranges.reverse();
+      fileOptions.reverse();
       refreshList();
       setStatus(translate('messages.reordered'), 'info');
     });
   }
 
-  clearBtn.addEventListener('click', () => { files = []; ranges = []; refreshList(); setStatus(translate('messages.cleared'), 'info'); });
+  clearBtn.addEventListener('click', () => {
+    files = [];
+    ranges = [];
+    fileOptions = [];
+    refreshList();
+    setStatus(translate('messages.cleared'), 'info');
+    syncGlobalControls();
+  });
 
   mergeBtn.addEventListener('click', async () => {
     if (files.length === 0) { alert(translate('messages.select_one')); return; }
@@ -604,4 +662,32 @@
       mergeBtn.textContent = translate('buttons.merge');
     }
   });
+
+  if (globalPaper) {
+    globalPaper.addEventListener('change', () => {
+      const value = globalPaper.value || 'auto';
+      applyGlobalChange('paper_size', value);
+    });
+  }
+
+  if (globalOrientation) {
+    globalOrientation.addEventListener('change', () => {
+      const value = globalOrientation.value || 'auto';
+      const isRotation = ROTATION_ORIENTATIONS.has(value);
+      applyGlobalChange('orientation', value, { forceFitAuto: isRotation });
+    });
+  }
+
+  if (globalFit) {
+    globalFit.addEventListener('change', () => {
+      if (ROTATION_ORIENTATIONS.has(globalOptions.orientation)) {
+        syncGlobalControls();
+        return;
+      }
+      const value = globalFit.value || 'auto';
+      applyGlobalChange('fit_mode', value);
+    });
+  }
+
+  syncGlobalControls();
 })();

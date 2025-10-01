@@ -20,6 +20,42 @@
     </div>
   </label>
 
+  <section class="global-controls" aria-label="{{ t.global_controls_title }}">
+    <div class="global-controls-header">
+      <span class="global-controls-title">{{ t.global_controls_title }}</span>
+      <span class="global-controls-description">{{ t.global_controls_description }}</span>
+    </div>
+    <div class="global-controls-grid">
+      <label>
+        <span>{{ t.paper_size_label }}</span>
+        <select id="globalPaper" class="option-select">
+          <option value="auto" {% if defaults.paper_size == 'auto' %}selected{% endif %}>{{ t.paper_size_auto }}</option>
+          <option value="A4" {% if defaults.paper_size == 'A4' %}selected{% endif %}>{{ t.paper_size_a4 }}</option>
+          <option value="Letter" {% if defaults.paper_size == 'Letter' %}selected{% endif %}>{{ t.paper_size_letter }}</option>
+        </select>
+      </label>
+      <label>
+        <span>{{ t.orientation_label }}</span>
+        <select id="globalOrientation" class="option-select">
+          <option value="auto" {% if defaults.orientation == 'auto' %}selected{% endif %}>{{ t.orientation_auto }}</option>
+          <option value="portrait" {% if defaults.orientation == 'portrait' %}selected{% endif %}>{{ t.orientation_portrait }}</option>
+          <option value="landscape" {% if defaults.orientation == 'landscape' %}selected{% endif %}>{{ t.orientation_landscape }}</option>
+          <option value="rotate90" {% if defaults.orientation == 'rotate90' %}selected{% endif %}>{{ t.orientation_rotate90 }}</option>
+          <option value="rotate180" {% if defaults.orientation == 'rotate180' %}selected{% endif %}>{{ t.orientation_rotate180 }}</option>
+          <option value="rotate270" {% if defaults.orientation == 'rotate270' %}selected{% endif %}>{{ t.orientation_rotate270 }}</option>
+        </select>
+      </label>
+      <label>
+        <span>{{ t.scale_mode_label }}</span>
+        <select id="globalFit" class="option-select">
+          <option value="auto" {% if defaults.fit_mode == 'auto' %}selected{% endif %}>{{ t.scale_mode_auto }}</option>
+          <option value="letterbox" {% if defaults.fit_mode == 'letterbox' %}selected{% endif %}>{{ t.scale_mode_letterbox }}</option>
+          <option value="crop" {% if defaults.fit_mode == 'crop' %}selected{% endif %}>{{ t.scale_mode_crop }}</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
   <div id="files" class="file-list empty">
     <p class="empty-state">{{ t.empty_state }}</p>
   </div>
