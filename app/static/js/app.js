@@ -10,6 +10,7 @@
   const mergeBtn = $('#mergeBtn');
   const apiKey = $('#apiKey');
   const clearBtn = $('#clearBtn');
+  const reverseBtn = $('#reverseBtn');
   const status = $('#status');
 
   const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDFMERGER__ || {
@@ -90,7 +91,8 @@
     if (files.length === 0) {
       filesDiv.classList.add('empty');
       filesDiv.innerHTML = `<p class="empty-state">${translate('messages.empty')}</p>`;
-      clearBtn.disabled = true;
+      if (clearBtn) clearBtn.disabled = true;
+      if (reverseBtn) reverseBtn.disabled = true;
       return;
     }
 
@@ -283,7 +285,8 @@
 
     filesDiv.appendChild(frag);
 
-    clearBtn.disabled = false;
+    if (clearBtn) clearBtn.disabled = false;
+    if (reverseBtn) reverseBtn.disabled = files.length <= 1;
 
     filesDiv.querySelectorAll('.file-row').forEach((row) => {
       const id = row.dataset.fileId;
@@ -478,13 +481,17 @@
   dropBox.addEventListener('dragleave', () => { dropBox.classList.remove('is-dragover'); });
   dropBox.addEventListener('drop', (e) => { e.preventDefault(); dropBox.classList.remove('is-dragover'); addFiles(e.dataTransfer.files || []); });
 
-  clearBtn.addEventListener('click', () => {
-    files = [];
-    ranges = [];
-    fileOptions = [];
-    refreshList();
-    setStatus(translate('messages.cleared'), 'info');
-  });
+  if (reverseBtn) {
+    reverseBtn.addEventListener('click', () => {
+      if (files.length <= 1) return;
+      files.reverse();
+      ranges.reverse();
+      refreshList();
+      setStatus(translate('messages.reordered'), 'info');
+    });
+  }
+
+  clearBtn.addEventListener('click', () => { files = []; ranges = []; refreshList(); setStatus(translate('messages.cleared'), 'info'); });
 
   mergeBtn.addEventListener('click', async () => {
     if (files.length === 0) { alert(translate('messages.select_one')); return; }
