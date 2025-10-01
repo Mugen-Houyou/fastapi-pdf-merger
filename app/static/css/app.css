@@ -377,6 +377,13 @@ body.app {
     align-items: center;
 }
 
+.actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+}
+
 button.primary {
     border: none;
     background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
@@ -420,6 +427,16 @@ button.ghost:hover:not(:disabled) {
 button.ghost:disabled {
     cursor: not-allowed;
     opacity: .55;
+}
+
+.button-icon {
+    width: 1.15em;
+    height: 1.15em;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .hint {
