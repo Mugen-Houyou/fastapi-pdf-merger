@@ -179,7 +179,7 @@ body.app {
 .file-row {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 160px);
     gap: 16px;
     padding: 16px 18px;
     border-radius: 16px;

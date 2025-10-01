@@ -118,7 +118,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "empty_state": "아직 추가된 파일이 없습니다. 위에서 PDF를 추가해 범위를 설정하세요.",
             "output_label": "출력 파일 이름",
             "api_key_label": "API 키",
-            "api_key_placeholder": "선택 사항 - 필요한 경우에만 입력",
+            "api_key_placeholder": "필요한 경우에만 입력",
             "engine_label": "처리 엔진",
             "engine_pypdf": "PyPDF (순수 파이썬)",
             "engine_pikepdf": "pikepdf (고속 C++ 백엔드)",
