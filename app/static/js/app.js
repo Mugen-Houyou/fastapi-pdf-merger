@@ -22,6 +22,8 @@
     limits: {}
   };
 
+  const ROTATION_ORIENTATIONS = new Set(['rotate90', 'rotate180', 'rotate270']);
+
   const translate = (key, params = {}) => {
     const parts = key.split('.');
     let value = i18n;
@@ -193,6 +195,9 @@
           { value: 'auto', label: translate('options.orientation.auto') },
           { value: 'portrait', label: translate('options.orientation.portrait') },
           { value: 'landscape', label: translate('options.orientation.landscape') },
+          { value: 'rotate90', label: translate('options.orientation.rotate90') },
+          { value: 'rotate180', label: translate('options.orientation.rotate180') },
+          { value: 'rotate270', label: translate('options.orientation.rotate270') },
         ]),
         fit: makeSelect('fit_mode', [
           { value: 'auto', label: translate('options.fit_mode.auto') },
@@ -268,7 +273,15 @@
         if (widgets.fit?.labelEl) widgets.fit.labelEl.textContent = translate('labels.fit_mode');
         if (widgets.fit?.select) {
           widgets.fit.select.dataset.idx = String(index);
-          widgets.fit.select.value = optionsForFile.fit_mode || defaultOptions.fit_mode;
+          const orientationValue = widgets.orientation?.select?.value || optionsForFile.orientation || defaultOptions.orientation;
+          if (ROTATION_ORIENTATIONS.has(orientationValue)) {
+            optionsForFile.fit_mode = 'auto';
+            widgets.fit.select.value = 'auto';
+            widgets.fit.select.disabled = true;
+          } else {
+            widgets.fit.select.disabled = false;
+            widgets.fit.select.value = optionsForFile.fit_mode || defaultOptions.fit_mode;
+          }
         }
       }
 
@@ -473,6 +486,20 @@
     if (Number.isNaN(i) || !key) return;
     const target = fileOptions[i] || (fileOptions[i] = createDefaultOptions());
     target[key] = select.value;
+
+    if (key === 'orientation') {
+      const row = select.closest('.file-row');
+      const fitSelect = row?.querySelector('select.option-select[data-key="fit_mode"]');
+      if (ROTATION_ORIENTATIONS.has(select.value)) {
+        target.fit_mode = 'auto';
+        if (fitSelect) {
+          fitSelect.value = 'auto';
+          fitSelect.disabled = true;
+        }
+      } else if (fitSelect) {
+        fitSelect.disabled = false;
+      }
+    }
   });
 
   fileInput.addEventListener('change', (e) => { addFiles(e.target.files || []); fileInput.value = ''; });

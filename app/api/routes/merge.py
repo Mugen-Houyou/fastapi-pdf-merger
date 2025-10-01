@@ -20,7 +20,8 @@ async def merge_pdf(
         None,
         description=(
             "JSON list of per-file layout options. Each object may contain "
-            "'paper_size' (A4|Letter|auto), 'orientation' (portrait|landscape|auto), "
+            "'paper_size' (A4|Letter|auto), 'orientation' "
+            "(portrait|landscape|rotate90|rotate180|rotate270|auto), "
             "and 'fit_mode' (letterbox|crop|auto)."
         ),
     ),

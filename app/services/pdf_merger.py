@@ -21,6 +21,7 @@ from app.utils.page_ranges import parse_page_ranges
 
 PaperSize = Literal["A4", "Letter"]
 Orientation = Literal["portrait", "landscape"]
+Rotation = Literal[90, 180, 270]
 FitMode = Literal["letterbox", "crop"]
 
 
@@ -28,11 +29,8 @@ FitMode = Literal["letterbox", "crop"]
 class LayoutOptions:
     paper_size: Optional[PaperSize] = None
     orientation: Optional[Orientation] = None
+    rotation: Optional[Rotation] = None
     fit_mode: Optional[FitMode] = None
-
-    @property
-    def is_passthrough(self) -> bool:
-        return self.paper_size is None
 
 
 _PAGE_DIMENSIONS: dict[tuple[PaperSize, Orientation], Tuple[float, float]] = {
@@ -75,6 +73,11 @@ class PdfMergerService:
 
         paper_lookup = {"a4": "A4", "letter": "Letter"}
         orientation_lookup = {"portrait": "portrait", "landscape": "landscape"}
+        rotation_lookup: dict[str, Rotation] = {
+            "rotate90": 90,
+            "rotate180": 180,
+            "rotate270": 270,
+        }
         fit_lookup = {"letterbox": "letterbox", "crop": "crop"}
 
         def normalize(value: Optional[str], table: dict[str, str]) -> Optional[str]:
@@ -84,12 +87,24 @@ class PdfMergerService:
             return table.get(token)
 
         paper = normalize(raw.get("paper_size"), paper_lookup)
-        orientation = normalize(raw.get("orientation"), orientation_lookup)
+        orientation_raw = str(raw.get("orientation", "")).strip().lower()
+        orientation: Optional[Orientation]
+        rotation: Optional[Rotation]
+        if not orientation_raw or orientation_raw == "auto":
+            orientation = None
+            rotation = None
+        elif orientation_raw in orientation_lookup:
+            orientation = cast(Optional[Orientation], orientation_lookup[orientation_raw])
+            rotation = None
+        else:
+            orientation = None
+            rotation = rotation_lookup.get(orientation_raw)
         fit_mode = normalize(raw.get("fit_mode"), fit_lookup)
 
         return LayoutOptions(
             paper_size=cast(Optional[PaperSize], paper),
             orientation=cast(Optional[Orientation], orientation),
+            rotation=cast(Optional[Rotation], rotation),
             fit_mode=cast(Optional[FitMode], fit_mode),
         )
 
@@ -158,16 +173,24 @@ class PdfMergerService:
         return _PAGE_DIMENSIONS[(paper_size, orientation)]
 
     def _render_page(self, page: PageObject, options: LayoutOptions) -> PageObject:
-        if options.is_passthrough:
-            return page
+        working_page = page
+        rotation = options.rotation
+        if rotation:
+            working_page = self._apply_rotation(working_page, rotation)
+
+        if options.paper_size is None:
+            return working_page
 
         paper_size = cast(PaperSize, options.paper_size)
-        orientation = cast(Orientation, options.orientation or self._infer_orientation(page))
+        orientation = cast(
+            Orientation,
+            options.orientation or self._infer_orientation(working_page),
+        )
         fit_mode = cast(FitMode, options.fit_mode or _DEFAULT_FIT_MODE)
         target_width, target_height = self._target_dimensions(paper_size, orientation)
         new_page = PageObject.create_blank_page(width=target_width, height=target_height)
 
-        mediabox = page.mediabox
+        mediabox = working_page.mediabox
         original_width = float(mediabox.width or target_width)
         original_height = float(mediabox.height or target_height)
 
@@ -195,8 +218,27 @@ class PdfMergerService:
             .scale(scale_factor)
             .translate(offset_x, offset_y)
         )
-        new_page.merge_transformed_page(page, transform, expand=False)
+        new_page.merge_transformed_page(working_page, transform, expand=False)
         return new_page
+
+    @staticmethod
+    def _apply_rotation(page: PageObject, rotation: Rotation) -> PageObject:
+        try:
+            rotated = page.rotate(rotation)  # type: ignore[attr-defined]
+            if rotated is not None:
+                return cast(PageObject, rotated)
+        except AttributeError:
+            pass
+
+        for method_name in ("rotate_clockwise", "rotateClockwise"):
+            rotate_method = getattr(page, method_name, None)
+            if callable(rotate_method):
+                result = rotate_method(rotation)
+                if isinstance(result, PageObject):
+                    return result
+                return page
+
+        return page
 
     def export(self, output_name: Optional[str]) -> StreamingResponse:
         writer = PdfWriter()
