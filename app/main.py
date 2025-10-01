@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.routes import health, merge, ui
 from app.core.config import settings
@@ -8,7 +9,10 @@ from app.core.config import settings
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Internal PDF Merger", version="1.0.0")
-    app.mount("/static", StaticFiles(directory="app/static"), name="static") 
+    if settings.use_proxy_headers:
+        trusted_hosts = list(settings.proxy_trusted_hosts) or None
+        app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
     @app.middleware("http")
     async def limit_upload_size(request: Request, call_next):

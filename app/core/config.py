@@ -28,6 +28,21 @@ class Settings(BaseSettings):
         ),
     )
 
+    use_proxy_headers: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "USE_PROXY_HEADERS",
+            "PDF_MERGER_USE_PROXY_HEADERS",
+        ),
+    )
+    proxy_trusted_hosts: tuple[str, ...] = Field(
+        default=("*",),
+        validation_alias=AliasChoices(
+            "PROXY_TRUSTED_HOSTS",
+            "PDF_MERGER_PROXY_TRUSTED_HOSTS",
+        ),
+    )
+
     @field_validator("pdf_merge_max_parallel", mode="before")
     @classmethod
     def _coerce_pdf_merge_max_parallel(cls, value: object) -> int | None:
@@ -38,6 +53,23 @@ class Settings(BaseSettings):
             return int(value)
         except (TypeError, ValueError):
             return None
+
+    @field_validator("proxy_trusted_hosts", mode="before")
+    @classmethod
+    def _coerce_proxy_trusted_hosts(
+        cls, value: object
+    ) -> tuple[str, ...]:  # pragma: no cover - simple parsing
+        if value in (None, ""):
+            return tuple()
+
+        if isinstance(value, str):
+            hosts = [host.strip() for host in value.split(",") if host.strip()]
+            return tuple(hosts)
+
+        if isinstance(value, (list, tuple, set)):
+            return tuple(str(host).strip() for host in value if str(host).strip())
+
+        return tuple()
 
 
 settings = Settings()
