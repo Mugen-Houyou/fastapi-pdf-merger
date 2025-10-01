@@ -76,14 +76,17 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             },
             "options": {
                 "paper_size": {
+                    "auto": "Auto",
                     "A4": "A4",
                     "Letter": "Letter",
                 },
                 "orientation": {
+                    "auto": "Auto",
                     "portrait": "Portrait",
                     "landscape": "Landscape",
                 },
                 "fit_mode": {
+                    "auto": "Auto",
                     "letterbox": "Letterbox (contain)",
                     "crop": "Crop (cover)",
                 },
@@ -152,14 +155,17 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             },
             "options": {
                 "paper_size": {
+                    "auto": "자동",
                     "A4": "A4",
                     "Letter": "레터",
                 },
                 "orientation": {
+                    "auto": "자동",
                     "portrait": "세로",
                     "landscape": "가로",
                 },
                 "fit_mode": {
+                    "auto": "자동",
                     "letterbox": "레터박스(전체 보기)",
                     "crop": "크롭(채우기)",
                 },

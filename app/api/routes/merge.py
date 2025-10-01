@@ -20,8 +20,8 @@ async def merge_pdf(
         None,
         description=(
             "JSON list of per-file layout options. Each object may contain "
-            "'paper_size' (A4|Letter), 'orientation' (portrait|landscape), "
-            "and 'fit_mode' (letterbox|crop)."
+            "'paper_size' (A4|Letter|auto), 'orientation' (portrait|landscape|auto), "
+            "and 'fit_mode' (letterbox|crop|auto)."
         ),
     ),
     output_name: Optional[str] = Form("merged.pdf"),

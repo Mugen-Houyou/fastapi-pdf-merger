@@ -14,7 +14,7 @@
 
   const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDFMERGER__ || {
     apiKeyRequired: false,
-    defaults: { output_name: 'merged.pdf', paper_size: 'A4', orientation: 'portrait', fit_mode: 'letterbox' },
+    defaults: { output_name: 'merged.pdf', paper_size: 'auto', orientation: 'auto', fit_mode: 'auto' },
     endpoints: { merge: '/merge' },
     i18n: {},
     locale: 'en',
@@ -183,14 +183,17 @@
         rangeLabel,
         rangeInput,
         paper: makeSelect('paper_size', [
+          { value: 'auto', label: translate('options.paper_size.auto') },
           { value: 'A4', label: translate('options.paper_size.A4') },
           { value: 'Letter', label: translate('options.paper_size.Letter') },
         ]),
         orientation: makeSelect('orientation', [
+          { value: 'auto', label: translate('options.orientation.auto') },
           { value: 'portrait', label: translate('options.orientation.portrait') },
           { value: 'landscape', label: translate('options.orientation.landscape') },
         ]),
         fit: makeSelect('fit_mode', [
+          { value: 'auto', label: translate('options.fit_mode.auto') },
           { value: 'letterbox', label: translate('options.fit_mode.letterbox') },
           { value: 'crop', label: translate('options.fit_mode.crop') },
         ]),
@@ -241,7 +244,8 @@
 
       const widgets = row.__widgets;
       if (widgets) {
-        const optionsForFile = fileOptions[index] || createDefaultOptions();
+        const defaultOptions = createDefaultOptions();
+        const optionsForFile = fileOptions[index] || defaultOptions;
         if (widgets.rangeLabel) widgets.rangeLabel.textContent = translate('labels.range');
         if (widgets.rangeInput) {
           widgets.rangeInput.placeholder = translate('placeholders.range');
@@ -251,17 +255,17 @@
         if (widgets.paper?.labelEl) widgets.paper.labelEl.textContent = translate('labels.paper_size');
         if (widgets.paper?.select) {
           widgets.paper.select.dataset.idx = String(index);
-          widgets.paper.select.value = optionsForFile.paper_size || createDefaultOptions().paper_size;
+          widgets.paper.select.value = optionsForFile.paper_size || defaultOptions.paper_size;
         }
         if (widgets.orientation?.labelEl) widgets.orientation.labelEl.textContent = translate('labels.orientation');
         if (widgets.orientation?.select) {
           widgets.orientation.select.dataset.idx = String(index);
-          widgets.orientation.select.value = optionsForFile.orientation || createDefaultOptions().orientation;
+          widgets.orientation.select.value = optionsForFile.orientation || defaultOptions.orientation;
         }
         if (widgets.fit?.labelEl) widgets.fit.labelEl.textContent = translate('labels.fit_mode');
         if (widgets.fit?.select) {
           widgets.fit.select.dataset.idx = String(index);
-          widgets.fit.select.value = optionsForFile.fit_mode || createDefaultOptions().fit_mode;
+          widgets.fit.select.value = optionsForFile.fit_mode || defaultOptions.fit_mode;
         }
       }
 
@@ -312,9 +316,9 @@
   };
 
   const createDefaultOptions = () => ({
-    paper_size: defaults.paper_size || 'A4',
-    orientation: defaults.orientation || 'portrait',
-    fit_mode: defaults.fit_mode || 'letterbox',
+    paper_size: defaults.paper_size || 'auto',
+    orientation: defaults.orientation || 'auto',
+    fit_mode: defaults.fit_mode || 'auto',
   });
 
   const addFiles = (newFiles) => {

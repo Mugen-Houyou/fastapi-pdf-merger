@@ -26,9 +26,13 @@ FitMode = Literal["letterbox", "crop"]
 
 @dataclass(frozen=True)
 class LayoutOptions:
-    paper_size: PaperSize = "A4"
-    orientation: Orientation = "portrait"
-    fit_mode: FitMode = "letterbox"
+    paper_size: Optional[PaperSize] = None
+    orientation: Optional[Orientation] = None
+    fit_mode: Optional[FitMode] = None
+
+    @property
+    def is_passthrough(self) -> bool:
+        return self.paper_size is None
 
 
 _PAGE_DIMENSIONS: dict[tuple[PaperSize, Orientation], Tuple[float, float]] = {
@@ -38,7 +42,7 @@ _PAGE_DIMENSIONS: dict[tuple[PaperSize, Orientation], Tuple[float, float]] = {
     ("Letter", "landscape"): (792.0, 612.0),
 }
 
-_DEFAULT_LAYOUT = LayoutOptions()
+_DEFAULT_FIT_MODE: FitMode = "letterbox"
 
 
 class PdfMergerService:
@@ -73,13 +77,21 @@ class PdfMergerService:
         orientation_lookup = {"portrait": "portrait", "landscape": "landscape"}
         fit_lookup = {"letterbox": "letterbox", "crop": "crop"}
 
-        paper = paper_lookup.get(str(raw.get("paper_size", "")).strip().lower(), _DEFAULT_LAYOUT.paper_size)
-        orientation = orientation_lookup.get(
-            str(raw.get("orientation", "")).strip().lower(), _DEFAULT_LAYOUT.orientation
-        )
-        fit_mode = fit_lookup.get(str(raw.get("fit_mode", "")).strip().lower(), _DEFAULT_LAYOUT.fit_mode)
+        def normalize(value: Optional[str], table: dict[str, str]) -> Optional[str]:
+            token = str(value or "").strip().lower()
+            if not token or token == "auto":
+                return None
+            return table.get(token)
 
-        return LayoutOptions(paper_size=cast(PaperSize, paper), orientation=cast(Orientation, orientation), fit_mode=cast(FitMode, fit_mode))
+        paper = normalize(raw.get("paper_size"), paper_lookup)
+        orientation = normalize(raw.get("orientation"), orientation_lookup)
+        fit_mode = normalize(raw.get("fit_mode"), fit_lookup)
+
+        return LayoutOptions(
+            paper_size=cast(Optional[PaperSize], paper),
+            orientation=cast(Optional[Orientation], orientation),
+            fit_mode=cast(Optional[FitMode], fit_mode),
+        )
 
     async def append_files(
         self,
@@ -134,11 +146,25 @@ class PdfMergerService:
         return pages
 
     @staticmethod
-    def _target_dimensions(options: LayoutOptions) -> Tuple[float, float]:
-        return _PAGE_DIMENSIONS[(options.paper_size, options.orientation)]
+    def _infer_orientation(page: PageObject) -> Orientation:
+        mediabox = page.mediabox
+        original_width = float(mediabox.width or 0)
+        original_height = float(mediabox.height or 0)
+        if original_width <= 0 or original_height <= 0:
+            return "portrait"
+        return "landscape" if original_width >= original_height else "portrait"
+
+    def _target_dimensions(self, paper_size: PaperSize, orientation: Orientation) -> Tuple[float, float]:
+        return _PAGE_DIMENSIONS[(paper_size, orientation)]
 
     def _render_page(self, page: PageObject, options: LayoutOptions) -> PageObject:
-        target_width, target_height = self._target_dimensions(options)
+        if options.is_passthrough:
+            return page
+
+        paper_size = cast(PaperSize, options.paper_size)
+        orientation = cast(Orientation, options.orientation or self._infer_orientation(page))
+        fit_mode = cast(FitMode, options.fit_mode or _DEFAULT_FIT_MODE)
+        target_width, target_height = self._target_dimensions(paper_size, orientation)
         new_page = PageObject.create_blank_page(width=target_width, height=target_height)
 
         mediabox = page.mediabox
@@ -149,7 +175,7 @@ class PdfMergerService:
             original_width = target_width
             original_height = target_height
 
-        if options.fit_mode == "crop":
+        if fit_mode == "crop":
             scale_factor = max(target_width / original_width, target_height / original_height)
         else:
             scale_factor = min(target_width / original_width, target_height / original_height)

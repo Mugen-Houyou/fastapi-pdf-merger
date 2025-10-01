@@ -27,9 +27,9 @@ async def index(request: Request) -> HTMLResponse:
             # 템플릿에 내려줄 기본값/플래그
             "defaults": {
                 "output_name": "merged.pdf",
-                "paper_size": "A4",
-                "orientation": "portrait",
-                "fit_mode": "letterbox",
+                "paper_size": "auto",
+                "orientation": "auto",
+                "fit_mode": "auto",
                 "engine": "pypdf",
             },
             "feature_flags": {
