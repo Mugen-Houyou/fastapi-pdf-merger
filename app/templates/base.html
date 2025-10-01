@@ -21,7 +21,8 @@
         merge: "{{ url_for('merge_pdf') if url_for else '/merge' }}"
       },
       locale: {{ (locale | default('en')) | tojson }},
-      i18n: {{ client_translations | default({}) | tojson }}
+      i18n: {{ client_translations | default({}) | tojson }},
+      limits: {{ limits | default({}) | tojson }}
     };
   </script>
   <script src="{{ url_for('static', path='js/app.js') }}"></script>

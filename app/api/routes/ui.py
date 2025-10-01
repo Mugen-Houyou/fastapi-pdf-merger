@@ -35,5 +35,8 @@ async def index(request: Request) -> HTMLResponse:
             "feature_flags": {
                 "api_key_required": bool(settings.api_key),
             },
+            "limits": {
+                "total_upload_mb": settings.max_total_upload_mb,
+            },
         },
     )

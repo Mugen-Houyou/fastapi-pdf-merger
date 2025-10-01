@@ -16,12 +16,13 @@
   const orientation = $('#orientation');
   const fitMode = $('#fitMode');
 
-  const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en' } = window.__PDFMERGER__ || {
+  const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDFMERGER__ || {
     apiKeyRequired: false,
     defaults: { output_name: 'merged.pdf', paper_size: 'A4', orientation: 'portrait', fit_mode: 'letterbox' },
     endpoints: { merge: '/merge' },
     i18n: {},
-    locale: 'en'
+    locale: 'en',
+    limits: {}
   };
 
   const translate = (key, params = {}) => {
@@ -48,6 +49,14 @@
 
   let files = [];
   let ranges = [];
+  let fileIdCounter = 0;
+
+  const ensureFileId = (file) => {
+    if (!file.__pdfMergerId) {
+      file.__pdfMergerId = `file-${fileIdCounter++}`;
+    }
+    return file.__pdfMergerId;
+  };
 
   const formatSize = (bytes) => {
     if (!Number.isFinite(bytes)) return '';
@@ -72,6 +81,16 @@
   };
 
   const refreshList = () => {
+    const previousPositions = new Map();
+    const existingRows = new Map();
+
+    filesDiv.querySelectorAll('.file-row').forEach((row) => {
+      const id = row.dataset.fileId;
+      if (!id) return;
+      existingRows.set(id, row);
+      previousPositions.set(id, row.getBoundingClientRect());
+    });
+
     filesDiv.innerHTML = '';
 
     if (files.length === 0) {
@@ -82,31 +101,150 @@
     }
 
     filesDiv.classList.remove('empty');
+
+    const ensureRowStructure = (row) => {
+      if (row.__structureReady) return row;
+      row.className = 'file-row';
+      const main = document.createElement('div');
+      main.className = 'file-main';
+
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'drag-handle';
+      handle.draggable = true;
+      handle.innerHTML = '<span aria-hidden="true">⋮⋮</span>';
+
+      const body = document.createElement('div');
+      body.className = 'file-body';
+
+      const meta = document.createElement('div');
+      meta.className = 'file-meta';
+
+      const indexEl = document.createElement('span');
+      indexEl.className = 'file-index';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'file-name';
+
+      const sizeEl = document.createElement('span');
+      sizeEl.className = 'file-size';
+
+      meta.appendChild(indexEl);
+      meta.appendChild(nameEl);
+      meta.appendChild(sizeEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'file-actions';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'icon-btn danger';
+      removeBtn.type = 'button';
+      removeBtn.dataset.action = 'remove';
+      actions.appendChild(removeBtn);
+
+      body.appendChild(meta);
+      body.appendChild(actions);
+
+      main.appendChild(handle);
+      main.appendChild(body);
+
+      const rangeWrapper = document.createElement('div');
+      const rangeInput = document.createElement('input');
+      rangeInput.type = 'text';
+      rangeInput.className = 'range-input';
+      rangeInput.autocomplete = 'off';
+      rangeWrapper.appendChild(rangeInput);
+
+      row.appendChild(main);
+      row.appendChild(rangeWrapper);
+
+      row.__structureReady = true;
+      return row;
+    };
+
+    const updateRow = (row, file, index) => {
+      ensureRowStructure(row);
+      const id = ensureFileId(file);
+      row.dataset.fileId = id;
+      row.dataset.index = String(index);
+      row.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+
+      const handle = row.querySelector('.drag-handle');
+      if (handle) {
+        handle.dataset.index = String(index);
+        handle.setAttribute('aria-label', translate('aria.drag_handle', { name: file.name }));
+      }
+
+      const indexEl = row.querySelector('.file-index');
+      if (indexEl) indexEl.textContent = String(index + 1);
+
+      const nameEl = row.querySelector('.file-name');
+      if (nameEl) {
+        nameEl.textContent = file.name;
+        nameEl.title = file.name;
+      }
+
+      const sizeEl = row.querySelector('.file-size');
+      if (sizeEl) sizeEl.textContent = formatSize(file.size);
+
+      const removeBtn = row.querySelector('button[data-action="remove"]');
+      if (removeBtn) {
+        removeBtn.dataset.index = String(index);
+        removeBtn.setAttribute('aria-label', translate('aria.remove', { name: file.name }));
+        removeBtn.textContent = translate('buttons.remove');
+      }
+
+      const rangeInput = row.querySelector('.range-input');
+      if (rangeInput) {
+        rangeInput.placeholder = translate('placeholders.range');
+        rangeInput.dataset.idx = String(index);
+        rangeInput.value = ranges[index] || '';
+      }
+
+      return row;
+    };
+
     const frag = document.createDocumentFragment();
     files.forEach((file, index) => {
-      const row = document.createElement('div');
-      row.className = 'file-row';
-      row.innerHTML = `
-        <div>
-          <div class="file-meta">
-            <span class="file-index">${index + 1}</span>
-            <span class="file-name" title="${file.name}">${file.name}</span>
-            <span class="file-size">${formatSize(file.size)}</span>
-          </div>
-          <div class="file-actions">
-            <button class="icon-btn" data-action="up" data-index="${index}" aria-label="${translate('aria.move_up', { name: file.name })}">↑</button>
-            <button class="icon-btn" data-action="down" data-index="${index}" aria-label="${translate('aria.move_down', { name: file.name })}">↓</button>
-            <button class="icon-btn danger" data-action="remove" data-index="${index}" aria-label="${translate('aria.remove', { name: file.name })}">${translate('buttons.remove')}</button>
-          </div>
-        </div>
-        <div>
-          <input type="text" class="range-input" placeholder="${translate('placeholders.range')}" data-idx="${index}" value="${ranges[index] || ''}" />
-        </div>
-      `;
+      const id = ensureFileId(file);
+      const row = updateRow(existingRows.get(id) || document.createElement('div'), file, index);
       frag.appendChild(row);
+      existingRows.delete(id);
     });
+
     filesDiv.appendChild(frag);
+
     clearBtn.disabled = false;
+
+    filesDiv.querySelectorAll('.file-row').forEach((row) => {
+      const id = row.dataset.fileId;
+      if (!id) return;
+      const previous = previousPositions.get(id);
+      if (!previous) return;
+      const current = row.getBoundingClientRect();
+      const deltaX = previous.left - current.left;
+      const deltaY = previous.top - current.top;
+      if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return;
+
+      row.classList.add('is-animating');
+      row.style.transition = 'none';
+      row.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      requestAnimationFrame(() => {
+        row.style.transition = '';
+        row.style.transform = '';
+      });
+
+      const handleTransitionEnd = (event) => {
+        if (event.propertyName === 'transform') {
+          row.classList.remove('is-animating');
+          row.style.transition = '';
+          row.style.transform = '';
+          row.removeEventListener('transitionend', handleTransitionEnd);
+        }
+      };
+
+      row.addEventListener('transitionend', handleTransitionEnd);
+    });
   };
 
   const addFiles = (newFiles) => {
@@ -114,12 +252,14 @@
     const incoming = Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
     if (incoming.length === 0) { setStatus(translate('messages.pdf_only'), 'error'); return; }
     setStatus('');
-    incoming.forEach(f => { files.push(f); ranges.push(''); });
+    incoming.forEach(f => {
+      ensureFileId(f);
+      files.push(f);
+      ranges.push('');
+    });
     refreshList();
   };
 
-  const moveUp = (i) => { if (i <= 0) return; [files[i-1], files[i]] = [files[i], files[i-1]]; [ranges[i-1], ranges[i]] = [ranges[i], ranges[i-1]]; refreshList(); };
-  const moveDown = (i) => { if (i >= files.length - 1) return; [files[i+1], files[i]] = [files[i], files[i+1]]; [ranges[i+1], ranges[i]] = [ranges[i], ranges[i+1]]; refreshList(); };
   const removeFile = (i) => { files.splice(i,1); ranges.splice(i,1); refreshList(); };
 
   filesDiv.addEventListener('click', (e) => {
@@ -127,9 +267,109 @@
     if (!btn) return;
     const i = Number(btn.dataset.index);
     if (Number.isNaN(i)) return;
-    if (btn.dataset.action === 'up') moveUp(i);
-    else if (btn.dataset.action === 'down') moveDown(i);
-    else if (btn.dataset.action === 'remove') removeFile(i);
+    if (btn.dataset.action === 'remove') removeFile(i);
+  });
+
+  const reorderItems = (from, to) => {
+    if (from === to) return;
+    if (from < 0 || from >= files.length) return;
+    if (to < 0) to = 0;
+    if (to > files.length) to = files.length;
+    const [movedFile] = files.splice(from, 1);
+    const [movedRange] = ranges.splice(from, 1);
+    files.splice(to, 0, movedFile);
+    ranges.splice(to, 0, movedRange);
+    refreshList();
+  };
+
+  let dragIndex = null;
+  let dropTarget = null;
+  let dropAfter = false;
+
+  const clearDragIndicators = () => {
+    filesDiv.querySelectorAll('.file-row').forEach(row => {
+      row.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+    });
+    dropTarget = null;
+    dropAfter = false;
+  };
+
+  filesDiv.addEventListener('dragstart', (e) => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) {
+      e.preventDefault();
+      return;
+    }
+    const row = handle.closest('.file-row');
+    if (!row) {
+      e.preventDefault();
+      return;
+    }
+    const index = Number(row.dataset.index);
+    if (Number.isNaN(index)) {
+      e.preventDefault();
+      return;
+    }
+    dragIndex = index;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  });
+
+  filesDiv.addEventListener('dragover', (e) => {
+    if (dragIndex === null) return;
+    const row = e.target.closest('.file-row');
+    if (!row) {
+      clearDragIndicators();
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    const rect = row.getBoundingClientRect();
+    const after = e.clientY > rect.top + rect.height / 2;
+    if (dropTarget !== row || dropAfter !== after) {
+      clearDragIndicators();
+      row.classList.add(after ? 'drag-over-bottom' : 'drag-over-top');
+      dropTarget = row;
+      dropAfter = after;
+    }
+    e.dataTransfer.dropEffect = 'move';
+  });
+
+  filesDiv.addEventListener('dragleave', (e) => {
+    const row = e.target.closest('.file-row');
+    if (!row) return;
+    row.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (row === dropTarget) {
+      dropTarget = null;
+      dropAfter = false;
+    }
+  });
+
+  filesDiv.addEventListener('drop', (e) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    let targetIndex;
+    if (dropTarget) {
+      targetIndex = Number(dropTarget.dataset.index);
+      if (Number.isNaN(targetIndex)) {
+        clearDragIndicators();
+        dragIndex = null;
+        return;
+      }
+      if (dropAfter) targetIndex += 1;
+    } else {
+      targetIndex = files.length;
+    }
+    if (dragIndex < targetIndex) targetIndex -= 1;
+    reorderItems(dragIndex, targetIndex);
+    dragIndex = null;
+    clearDragIndicators();
+  });
+
+  filesDiv.addEventListener('dragend', () => {
+    dragIndex = null;
+    clearDragIndicators();
   });
 
   filesDiv.addEventListener('input', (e) => {
