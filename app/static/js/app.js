@@ -403,9 +403,9 @@
   };
 
   const removeFile = (i) => {
-    files.splice(i,1);
-    ranges.splice(i,1);
-    fileOptions.splice(i,1);
+    files.splice(i, 1);
+    ranges.splice(i, 1);
+    fileOptions.splice(i, 1);
     refreshList();
   };
 
@@ -414,7 +414,10 @@
     if (!btn) return;
     const i = Number(btn.dataset.index);
     if (Number.isNaN(i)) return;
-    if (btn.dataset.action === 'remove') removeFile(i);
+    if (btn.dataset.action === 'remove') {
+      if (!window.confirm(translate('messages.confirm_remove'))) return;
+      removeFile(i);
+    }
   });
 
   const reorderItems = (from, to) => {
@@ -570,6 +573,8 @@
   }
 
   clearBtn.addEventListener('click', () => {
+    if (files.length === 0) return;
+    if (!window.confirm(translate('messages.confirm_clear'))) return;
     files = [];
     ranges = [];
     fileOptions = [];

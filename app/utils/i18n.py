@@ -71,6 +71,8 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "merge_failed": "Failed to merge PDFs.",
                 "failed_prefix": "Failed: {message}",
                 "reordered": "Reversed file order.",
+                "confirm_remove": "Are you sure you want to remove this file?",
+                "confirm_clear": "Are you sure you want to clear all files?",
             },
             "aria": {
                 "drag_handle": "Drag {name} to reorder",
@@ -164,6 +166,8 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "merge_failed": "PDF 병합에 실패했습니다!",
                 "failed_prefix": "실패: {message}",
                 "reordered": "파일 순서를 거꾸로 정렬했습니다.",
+                "confirm_remove": "이 파일을 삭제하시겠습니까?",
+                "confirm_clear": "전체 목록을 지우시겠습니까?",
             },
             "aria": {
                 "drag_handle": "{name}를 드래그하여 순서를 변경",
