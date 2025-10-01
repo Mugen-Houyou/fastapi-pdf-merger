@@ -110,7 +110,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "api_key_placeholder": "선택 사항 - 필요한 경우에만 입력",
             "engine_label": "처리 엔진",
             "engine_pypdf": "PyPDF (순수 파이썬)",
-            "engine_pikepdf": "pikepdf (빠른 C++ 백엔드)",
+            "engine_pikepdf": "pikepdf (고속 C++ 백엔드)",
             "paper_size_label": "용지 크기",
             "paper_size_a4": "A4",
             "paper_size_letter": "U.S. 레터",
