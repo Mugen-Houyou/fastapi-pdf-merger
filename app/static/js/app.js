@@ -10,6 +10,7 @@
   const mergeBtn = $('#mergeBtn');
   const apiKey = $('#apiKey');
   const clearBtn = $('#clearBtn');
+  const reverseBtn = $('#reverseBtn');
   const status = $('#status');
 
   const paperSize = $('#paperSize');
@@ -96,7 +97,8 @@
     if (files.length === 0) {
       filesDiv.classList.add('empty');
       filesDiv.innerHTML = `<p class="empty-state">${translate('messages.empty')}</p>`;
-      clearBtn.disabled = true;
+      if (clearBtn) clearBtn.disabled = true;
+      if (reverseBtn) reverseBtn.disabled = true;
       return;
     }
 
@@ -214,7 +216,8 @@
 
     filesDiv.appendChild(frag);
 
-    clearBtn.disabled = false;
+    if (clearBtn) clearBtn.disabled = false;
+    if (reverseBtn) reverseBtn.disabled = files.length <= 1;
 
     filesDiv.querySelectorAll('.file-row').forEach((row) => {
       const id = row.dataset.fileId;
@@ -384,6 +387,16 @@
   dropBox.addEventListener('dragover', (e) => { e.preventDefault(); dropBox.classList.add('is-dragover'); });
   dropBox.addEventListener('dragleave', () => { dropBox.classList.remove('is-dragover'); });
   dropBox.addEventListener('drop', (e) => { e.preventDefault(); dropBox.classList.remove('is-dragover'); addFiles(e.dataTransfer.files || []); });
+
+  if (reverseBtn) {
+    reverseBtn.addEventListener('click', () => {
+      if (files.length <= 1) return;
+      files.reverse();
+      ranges.reverse();
+      refreshList();
+      setStatus(translate('messages.reordered'), 'info');
+    });
+  }
 
   clearBtn.addEventListener('click', () => { files = []; ranges = []; refreshList(); setStatus(translate('messages.cleared'), 'info'); });
 

@@ -39,6 +39,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "scale_mode_letterbox": "Letterbox (contain)",
             "scale_mode_crop": "Crop (cover)",
             "merge_button": "Merge PDFs",
+            "reverse_button": "Reverse order",
             "clear_button": "Clear files",
             "range_hint_html": "Page range example: <code>1-3,5</code> (leave empty for entire file)",
             "range_placeholder": "Page ranges e.g. 1-3,5",
@@ -49,6 +50,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "merging": "Merging…",
                 "clear": "Clear files",
                 "remove": "Remove",
+                "reverse": "Reverse order",
             },
             "messages": {
                 "empty": "No files added yet. Add PDFs above to configure their ranges.",
@@ -60,6 +62,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "merged": "Merged successfully! Your download should begin automatically.",
                 "merge_failed": "Failed to merge PDFs.",
                 "failed_prefix": "Failed: {message}",
+                "reordered": "Reversed file order.",
             },
             "aria": {
                 "drag_handle": "Drag {name} to reorder",
@@ -95,6 +98,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "scale_mode_letterbox": "레터박스(전체 보기)",
             "scale_mode_crop": "크롭(채우기)",
             "merge_button": "PDF 병합",
+            "reverse_button": "순서 거꾸로",
             "clear_button": "파일 지우기",
             "range_hint_html": "페이지 범위 예시: <code>1-3,5</code> (비워두면 전체 페이지)",
             "range_placeholder": "페이지 범위 예: 1-3,5",
@@ -105,6 +109,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "merging": "병합 중…",
                 "clear": "파일 지우기",
                 "remove": "삭제",
+                "reverse": "순서 거꾸로",
             },
             "messages": {
                 "empty": "아직 추가된 파일이 없습니다. 위에서 PDF를 추가해 범위를 설정하세요.",
@@ -116,6 +121,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "merged": "병합이 완료되었습니다! 다운로드가 자동으로 시작됩니다.",
                 "merge_failed": "PDF 병합에 실패했습니다.",
                 "failed_prefix": "실패: {message}",
+                "reordered": "파일 순서를 거꾸로 정렬했습니다.",
             },
             "aria": {
                 "drag_handle": "{name}를 드래그하여 순서를 변경",
