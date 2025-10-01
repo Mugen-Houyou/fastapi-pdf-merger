@@ -48,6 +48,11 @@ Uvicorn으로 FastAPI 애플리케이션을 로컬에서 실행하려면 다음 
 uvicorn app.main:app --reload
 ```
 
+Reverse proxy 등 구성 시 아래와 같은 식으로 실행할 수도 있습니다.
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"
+```
+
 기본적으로 UI는 <http://127.0.0.1:8000/> 에서, API 엔드포인트는 `/merge`, 헬스 체크는 `/health`에서 이용할 수 있습니다.
 
 ## API 사용법
@@ -72,4 +77,4 @@ uvicorn app.main:app --reload
 
 ## 라이선스
 
-이 프로젝트는 [GNU Affero General Public License v3.0 (AGPLv3)](https://www.gnu.org/licenses/agpl-3.0.html)의 적용을 받습니다. 네트워크를 통해 이 애플리케이션에 접근하는 이용자에게는 라이선스가 요구하는 대로 동일한 소스 코드를 제공해야 합니다.
+이 프로젝트는 [GNU Affero General Public License v3.0 (AGPLv3)](https://www.gnu.org/licenses/agpl-3.0.html)의 적용을 받습니다. 네트워크를 통해 이 애플리케이션을 제공하는 경우 라이선스가 요구하는 대로 동일한 소스 코드를 제공해야 합니다.
