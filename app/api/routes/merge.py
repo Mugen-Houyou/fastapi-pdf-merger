@@ -16,6 +16,14 @@ async def merge_pdf(
     ranges: Optional[str] = Form(
         None, description='JSON list of page ranges per file, e.g. ["1-3,5",""]'
     ),
+    options: Optional[str] = Form(
+        None,
+        description=(
+            "JSON list of per-file layout options. Each object may contain "
+            "'paper_size' (A4|Letter), 'orientation' (portrait|landscape), "
+            "and 'fit_mode' (letterbox|crop)."
+        ),
+    ),
     output_name: Optional[str] = Form("merged.pdf"),
     engine: Literal["pypdf", "pikepdf"] = Form(
         "pypdf", description="PDF processing backend: 'pypdf' (default) or 'pikepdf'."
@@ -41,6 +49,27 @@ async def merge_pdf(
     while len(per_file_ranges) < len(files):
         per_file_ranges.append("")
 
+    per_file_options: list[dict[str, str]] = []
+    if options:
+        try:
+            parsed_options = json.loads(options)
+            if not isinstance(parsed_options, list):
+                raise ValueError("options must be a JSON list of objects.")
+            for raw in parsed_options:
+                if isinstance(raw, dict):
+                    per_file_options.append({
+                        "paper_size": str(raw.get("paper_size", "")),
+                        "orientation": str(raw.get("orientation", "")),
+                        "fit_mode": str(raw.get("fit_mode", "")),
+                    })
+                else:
+                    per_file_options.append({})
+        except Exception as exc:  # pragma: no cover - defensive
+            raise HTTPException(status_code=400, detail=f"Invalid options JSON: {exc}") from exc
+
+    while len(per_file_options) < len(files):
+        per_file_options.append({})
+
     merger = PdfMergerService(engine=engine)
-    await merger.append_files(files, per_file_ranges)
+    await merger.append_files(files, per_file_ranges, per_file_options)
     return merger.export(output_name)

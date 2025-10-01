@@ -68,6 +68,26 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "placeholders": {
                 "range": "Page ranges e.g. 1-3,5",
             },
+            "labels": {
+                "range": "Page ranges",
+                "paper_size": "Paper size",
+                "orientation": "Orientation",
+                "fit_mode": "Scale mode",
+            },
+            "options": {
+                "paper_size": {
+                    "A4": "A4",
+                    "Letter": "Letter",
+                },
+                "orientation": {
+                    "portrait": "Portrait",
+                    "landscape": "Landscape",
+                },
+                "fit_mode": {
+                    "letterbox": "Letterbox (contain)",
+                    "crop": "Crop (cover)",
+                },
+            },
         },
     },
     "ko": {
@@ -123,6 +143,26 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             },
             "placeholders": {
                 "range": "페이지 범위 예: 1-3,5",
+            },
+            "labels": {
+                "range": "페이지 범위",
+                "paper_size": "용지 크기",
+                "orientation": "방향",
+                "fit_mode": "배치 방식",
+            },
+            "options": {
+                "paper_size": {
+                    "A4": "A4",
+                    "Letter": "레터",
+                },
+                "orientation": {
+                    "portrait": "세로",
+                    "landscape": "가로",
+                },
+                "fit_mode": {
+                    "letterbox": "레터박스(전체 보기)",
+                    "crop": "크롭(채우기)",
+                },
             },
         },
     },
