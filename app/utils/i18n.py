@@ -110,7 +110,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "engine_pikepdf": "pikepdf (빠른 C++ 백엔드)",
             "paper_size_label": "용지 크기",
             "paper_size_a4": "A4",
-            "paper_size_letter": "레터",
+            "paper_size_letter": "U.S. 레터",
             "orientation_label": "방향",
             "orientation_portrait": "세로",
             "orientation_landscape": "가로",
@@ -157,7 +157,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "paper_size": {
                     "auto": "자동",
                     "A4": "A4",
-                    "Letter": "레터",
+                    "Letter": "U.S. 레터",
                 },
                 "orientation": {
                     "auto": "자동",

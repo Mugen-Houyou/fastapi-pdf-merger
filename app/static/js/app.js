@@ -173,7 +173,7 @@
           opt.textContent = label;
           select.appendChild(opt);
         });
-        wrapper.appendChild(title);
+        // wrapper.appendChild(title);
         wrapper.appendChild(select);
         optionsWrapper.appendChild(wrapper);
         return { wrapper, select, labelEl: title };
@@ -200,7 +200,7 @@
       };
 
       side.appendChild(rangeField);
-      side.appendChild(optionsWrapper);
+      actions.appendChild(optionsWrapper);
 
       row.appendChild(main);
       row.appendChild(side);
@@ -240,6 +240,7 @@
         removeBtn.dataset.index = String(index);
         removeBtn.setAttribute('aria-label', translate('aria.remove', { name: file.name }));
         removeBtn.textContent = translate('buttons.remove');
+        removeBtn.style.marginRight = '1em';
       }
 
       const widgets = row.__widgets;
