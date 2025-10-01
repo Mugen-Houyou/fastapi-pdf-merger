@@ -131,7 +131,7 @@ body.app {
 .file-row {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(180px, 210px);
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
     gap: 16px;
     padding: 16px 18px;
     border-radius: 16px;
@@ -179,6 +179,51 @@ body.app {
 .file-body {
     flex: 1;
     min-width: 0;
+}
+
+.file-side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.file-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: .85rem;
+    color: var(--muted);
+}
+
+.field-label {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.file-options {
+    display: flex;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.file-field select.option-select,
+.file-field input.range-input {
+    width: 100%;
+}
+
+.option-select {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, .45);
+    background: rgba(255, 255, 255, .9);
+    font-size: .9rem;
+    color: var(--text);
+}
+
+.option-select:focus {
+    border-color: rgba(37, 99, 235, .6);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .18);
 }
 
 .drag-handle {

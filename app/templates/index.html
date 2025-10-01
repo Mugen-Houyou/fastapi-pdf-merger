@@ -42,31 +42,6 @@
     </label>
   </div>
 
-  <!-- 용지/방향/맞춤 옵션이 있다면 여기에 select를 추가 -->
-  <div class="form-grid" style="display: none;">
-    <label>
-      {{ t.paper_size_label }}
-      <select id="paperSize">
-        <option value="A4" {% if defaults.paper_size == "A4" %}selected{% endif %}>{{ t.paper_size_a4 }}</option>
-        <option value="Letter" {% if defaults.paper_size == "Letter" %}selected{% endif %}>{{ t.paper_size_letter }}</option>
-      </select>
-    </label>
-    <label>
-      {{ t.orientation_label }}
-      <select id="orientation">
-        <option value="portrait" {% if defaults.orientation == "portrait" %}selected{% endif %}>{{ t.orientation_portrait }}</option>
-        <option value="landscape" {% if defaults.orientation == "landscape" %}selected{% endif %}>{{ t.orientation_landscape }}</option>
-      </select>
-    </label>
-    <label>
-      {{ t.scale_mode_label }}
-      <select id="fitMode">
-        <option value="letterbox" {% if defaults.fit_mode == "letterbox" %}selected{% endif %}>{{ t.scale_mode_letterbox }}</option>
-        <option value="crop" {% if defaults.fit_mode == "crop" %}selected{% endif %}>{{ t.scale_mode_crop }}</option>
-      </select>
-    </label>
-  </div>
-
   <div class="actions">
     <button id="mergeBtn" class="primary">{{ t.merge_button }}</button>
     <button id="reverseBtn" type="button" class="ghost" disabled>{{ t.reverse_button }}</button>
