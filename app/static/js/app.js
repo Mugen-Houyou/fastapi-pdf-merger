@@ -49,6 +49,14 @@
 
   let files = [];
   let ranges = [];
+  let fileIdCounter = 0;
+
+  const ensureFileId = (file) => {
+    if (!file.__pdfMergerId) {
+      file.__pdfMergerId = `file-${fileIdCounter++}`;
+    }
+    return file.__pdfMergerId;
+  };
 
   const formatSize = (bytes) => {
     if (!Number.isFinite(bytes)) return '';
@@ -73,6 +81,16 @@
   };
 
   const refreshList = () => {
+    const previousPositions = new Map();
+    const existingRows = new Map();
+
+    filesDiv.querySelectorAll('.file-row').forEach((row) => {
+      const id = row.dataset.fileId;
+      if (!id) return;
+      existingRows.set(id, row);
+      previousPositions.set(id, row.getBoundingClientRect());
+    });
+
     filesDiv.innerHTML = '';
 
     if (files.length === 0) {
@@ -83,35 +101,150 @@
     }
 
     filesDiv.classList.remove('empty');
+
+    const ensureRowStructure = (row) => {
+      if (row.__structureReady) return row;
+      row.className = 'file-row';
+      const main = document.createElement('div');
+      main.className = 'file-main';
+
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'drag-handle';
+      handle.draggable = true;
+      handle.innerHTML = '<span aria-hidden="true">⋮⋮</span>';
+
+      const body = document.createElement('div');
+      body.className = 'file-body';
+
+      const meta = document.createElement('div');
+      meta.className = 'file-meta';
+
+      const indexEl = document.createElement('span');
+      indexEl.className = 'file-index';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'file-name';
+
+      const sizeEl = document.createElement('span');
+      sizeEl.className = 'file-size';
+
+      meta.appendChild(indexEl);
+      meta.appendChild(nameEl);
+      meta.appendChild(sizeEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'file-actions';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'icon-btn danger';
+      removeBtn.type = 'button';
+      removeBtn.dataset.action = 'remove';
+      actions.appendChild(removeBtn);
+
+      body.appendChild(meta);
+      body.appendChild(actions);
+
+      main.appendChild(handle);
+      main.appendChild(body);
+
+      const rangeWrapper = document.createElement('div');
+      const rangeInput = document.createElement('input');
+      rangeInput.type = 'text';
+      rangeInput.className = 'range-input';
+      rangeInput.autocomplete = 'off';
+      rangeWrapper.appendChild(rangeInput);
+
+      row.appendChild(main);
+      row.appendChild(rangeWrapper);
+
+      row.__structureReady = true;
+      return row;
+    };
+
+    const updateRow = (row, file, index) => {
+      ensureRowStructure(row);
+      const id = ensureFileId(file);
+      row.dataset.fileId = id;
+      row.dataset.index = String(index);
+      row.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+
+      const handle = row.querySelector('.drag-handle');
+      if (handle) {
+        handle.dataset.index = String(index);
+        handle.setAttribute('aria-label', translate('aria.drag_handle', { name: file.name }));
+      }
+
+      const indexEl = row.querySelector('.file-index');
+      if (indexEl) indexEl.textContent = String(index + 1);
+
+      const nameEl = row.querySelector('.file-name');
+      if (nameEl) {
+        nameEl.textContent = file.name;
+        nameEl.title = file.name;
+      }
+
+      const sizeEl = row.querySelector('.file-size');
+      if (sizeEl) sizeEl.textContent = formatSize(file.size);
+
+      const removeBtn = row.querySelector('button[data-action="remove"]');
+      if (removeBtn) {
+        removeBtn.dataset.index = String(index);
+        removeBtn.setAttribute('aria-label', translate('aria.remove', { name: file.name }));
+        removeBtn.textContent = translate('buttons.remove');
+      }
+
+      const rangeInput = row.querySelector('.range-input');
+      if (rangeInput) {
+        rangeInput.placeholder = translate('placeholders.range');
+        rangeInput.dataset.idx = String(index);
+        rangeInput.value = ranges[index] || '';
+      }
+
+      return row;
+    };
+
     const frag = document.createDocumentFragment();
     files.forEach((file, index) => {
-      const row = document.createElement('div');
-      row.className = 'file-row';
-      row.dataset.index = String(index);
-      row.innerHTML = `
-        <div class="file-main">
-          <button type="button" class="drag-handle" data-index="${index}" draggable="true" aria-label="${translate('aria.drag_handle', { name: file.name })}">
-            <span aria-hidden="true">⋮⋮</span>
-          </button>
-          <div class="file-body">
-            <div class="file-meta">
-              <span class="file-index">${index + 1}</span>
-              <span class="file-name" title="${file.name}">${file.name}</span>
-              <span class="file-size">${formatSize(file.size)}</span>
-            </div>
-            <div class="file-actions">
-              <button class="icon-btn danger" data-action="remove" data-index="${index}" aria-label="${translate('aria.remove', { name: file.name })}">${translate('buttons.remove')}</button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <input type="text" class="range-input" placeholder="${translate('placeholders.range')}" data-idx="${index}" value="${ranges[index] || ''}" />
-        </div>
-      `;
+      const id = ensureFileId(file);
+      const row = updateRow(existingRows.get(id) || document.createElement('div'), file, index);
       frag.appendChild(row);
+      existingRows.delete(id);
     });
+
     filesDiv.appendChild(frag);
+
     clearBtn.disabled = false;
+
+    filesDiv.querySelectorAll('.file-row').forEach((row) => {
+      const id = row.dataset.fileId;
+      if (!id) return;
+      const previous = previousPositions.get(id);
+      if (!previous) return;
+      const current = row.getBoundingClientRect();
+      const deltaX = previous.left - current.left;
+      const deltaY = previous.top - current.top;
+      if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return;
+
+      row.classList.add('is-animating');
+      row.style.transition = 'none';
+      row.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      requestAnimationFrame(() => {
+        row.style.transition = '';
+        row.style.transform = '';
+      });
+
+      const handleTransitionEnd = (event) => {
+        if (event.propertyName === 'transform') {
+          row.classList.remove('is-animating');
+          row.style.transition = '';
+          row.style.transform = '';
+          row.removeEventListener('transitionend', handleTransitionEnd);
+        }
+      };
+
+      row.addEventListener('transitionend', handleTransitionEnd);
+    });
   };
 
   const addFiles = (newFiles) => {
@@ -119,7 +252,11 @@
     const incoming = Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
     if (incoming.length === 0) { setStatus(translate('messages.pdf_only'), 'error'); return; }
     setStatus('');
-    incoming.forEach(f => { files.push(f); ranges.push(''); });
+    incoming.forEach(f => {
+      ensureFileId(f);
+      files.push(f);
+      ranges.push('');
+    });
     refreshList();
   };
 
