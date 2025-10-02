@@ -26,6 +26,11 @@
   };
 
   const ROTATION_ORIENTATIONS = new Set(['rotate90', 'rotate180', 'rotate270']);
+  const FALLBACK_DEFAULTS = {
+    paper_size: 'A4',
+    orientation: 'portrait',
+    fit_mode: 'letterbox',
+  };
 
   let globalOptions = {
     paper_size: defaults.paper_size || 'auto',
@@ -87,6 +92,8 @@
   };
 
   const refreshList = () => {
+    const hasImages = hasImageUploads();
+    const allowAuto = !hasImages;
     const previousPositions = new Map();
     const existingRows = new Map();
 
@@ -227,6 +234,24 @@
     };
 
     const updateRow = (row, file, index) => {
+      const defaultOptions = createDefaultOptions(hasImages);
+      const currentOptions = fileOptions[index]
+        ? { ...defaultOptions, ...fileOptions[index] }
+        : { ...defaultOptions };
+
+      if (!allowAuto) {
+        currentOptions.paper_size = sanitizeValue('paper_size', currentOptions.paper_size, allowAuto);
+        currentOptions.orientation = sanitizeValue('orientation', currentOptions.orientation, allowAuto);
+        currentOptions.fit_mode = sanitizeValue('fit_mode', currentOptions.fit_mode, allowAuto);
+      }
+
+      const rotationSelected = ROTATION_ORIENTATIONS.has(currentOptions.orientation);
+      if (rotationSelected) {
+        currentOptions.fit_mode = allowAuto ? 'auto' : defaultOptions.fit_mode;
+      }
+
+      fileOptions[index] = currentOptions;
+
       ensureRowStructure(row);
       const id = ensureFileId(file);
       row.dataset.fileId = id;
@@ -261,8 +286,6 @@
 
       const widgets = row.__widgets;
       if (widgets) {
-        const defaultOptions = createDefaultOptions();
-        const optionsForFile = fileOptions[index] || defaultOptions;
         if (widgets.rangeLabel) widgets.rangeLabel.textContent = translate('labels.range');
         if (widgets.rangeInput) {
           widgets.rangeInput.placeholder = translate('placeholders.range');
@@ -272,25 +295,39 @@
         if (widgets.paper?.labelEl) widgets.paper.labelEl.textContent = translate('labels.paper_size');
         if (widgets.paper?.select) {
           widgets.paper.select.dataset.idx = String(index);
-          widgets.paper.select.value = optionsForFile.paper_size || defaultOptions.paper_size;
+          widgets.paper.select.value = currentOptions.paper_size;
+          updateAutoOptionAvailability(
+            widgets.paper.select,
+            allowAuto,
+            currentOptions.paper_size || defaultOptions.paper_size,
+          );
         }
         if (widgets.orientation?.labelEl) widgets.orientation.labelEl.textContent = translate('labels.orientation');
         if (widgets.orientation?.select) {
           widgets.orientation.select.dataset.idx = String(index);
-          widgets.orientation.select.value = optionsForFile.orientation || defaultOptions.orientation;
+          widgets.orientation.select.value = currentOptions.orientation;
+          updateAutoOptionAvailability(
+            widgets.orientation.select,
+            allowAuto,
+            currentOptions.orientation || defaultOptions.orientation,
+          );
         }
         if (widgets.fit?.labelEl) widgets.fit.labelEl.textContent = translate('labels.fit_mode');
         if (widgets.fit?.select) {
           widgets.fit.select.dataset.idx = String(index);
-          const orientationValue = widgets.orientation?.select?.value || optionsForFile.orientation || defaultOptions.orientation;
-          if (ROTATION_ORIENTATIONS.has(orientationValue)) {
-            optionsForFile.fit_mode = 'auto';
-            widgets.fit.select.value = 'auto';
+          const orientationValue = widgets.orientation?.select?.value || currentOptions.orientation;
+          const isRotation = ROTATION_ORIENTATIONS.has(orientationValue);
+          if (isRotation) {
             widgets.fit.select.disabled = true;
           } else {
             widgets.fit.select.disabled = false;
-            widgets.fit.select.value = optionsForFile.fit_mode || defaultOptions.fit_mode;
           }
+          widgets.fit.select.value = currentOptions.fit_mode;
+          updateAutoOptionAvailability(
+            widgets.fit.select,
+            !isRotation && allowAuto,
+            currentOptions.fit_mode || defaultOptions.fit_mode,
+          );
         }
       }
 
@@ -341,45 +378,83 @@
     });
   };
 
-  const createDefaultOptions = () => {
-    const orientation = globalOptions.orientation || 'auto';
+  const createDefaultOptions = (hasImages = hasImageUploads()) => {
+    const allowAuto = !hasImages;
+    const basePaper = globalOptions.paper_size || 'auto';
+    const baseOrientation = globalOptions.orientation || 'auto';
+    const baseFit = globalOptions.fit_mode || 'auto';
+    const paperSize = sanitizeValue('paper_size', basePaper, allowAuto);
+    const orientation = sanitizeValue('orientation', baseOrientation, allowAuto);
+    const rotationSelected = ROTATION_ORIENTATIONS.has(orientation);
+    let fitMode;
+    if (rotationSelected) {
+      fitMode = allowAuto ? 'auto' : FALLBACK_DEFAULTS.fit_mode;
+    } else {
+      fitMode = sanitizeValue('fit_mode', baseFit, allowAuto);
+    }
     return {
-      paper_size: globalOptions.paper_size || 'auto',
+      paper_size: paperSize,
       orientation,
-      fit_mode: ROTATION_ORIENTATIONS.has(orientation)
-        ? 'auto'
-        : (globalOptions.fit_mode || 'auto'),
+      fit_mode: fitMode,
     };
   };
 
   const syncGlobalControls = () => {
-    if (globalPaper) globalPaper.value = globalOptions.paper_size || 'auto';
-    if (globalOrientation) globalOrientation.value = globalOptions.orientation || 'auto';
+    const hasImages = hasImageUploads();
+    const allowAuto = !hasImages;
+    if (globalPaper) {
+      const value = sanitizeValue('paper_size', globalOptions.paper_size || 'auto', allowAuto);
+      globalPaper.value = value;
+      updateAutoOptionAvailability(globalPaper, allowAuto, value);
+    }
+    if (globalOrientation) {
+      const value = sanitizeValue('orientation', globalOptions.orientation || 'auto', allowAuto);
+      globalOrientation.value = value;
+      updateAutoOptionAvailability(globalOrientation, allowAuto, value);
+    }
     if (globalFit) {
-      const rotation = ROTATION_ORIENTATIONS.has(globalOptions.orientation);
+      const orientationValue = globalOrientation ? globalOrientation.value : globalOptions.orientation || 'auto';
+      const rotation = ROTATION_ORIENTATIONS.has(orientationValue);
       if (rotation) {
-        globalFit.value = 'auto';
+        const rotationValue = sanitizeValue('fit_mode', 'auto', allowAuto);
+        globalFit.value = rotationValue;
         globalFit.disabled = true;
+        updateAutoOptionAvailability(globalFit, false, rotationValue);
       } else {
+        const value = sanitizeValue('fit_mode', globalOptions.fit_mode || 'auto', allowAuto);
         globalFit.disabled = false;
-        globalFit.value = globalOptions.fit_mode || 'auto';
+        globalFit.value = value;
+        updateAutoOptionAvailability(globalFit, allowAuto, value);
       }
     }
   };
 
   const applyGlobalChange = (key, value, { forceFitAuto = false } = {}) => {
-    globalOptions = { ...globalOptions, [key]: value };
+    const hasImages = hasImageUploads();
+    const allowAuto = !hasImages;
+    const sanitizedValue = sanitizeValue(key, value, allowAuto);
+    globalOptions = { ...globalOptions, [key]: sanitizedValue };
     if (forceFitAuto) {
-      globalOptions.fit_mode = 'auto';
+      globalOptions.fit_mode = sanitizeValue('fit_mode', 'auto', allowAuto);
     }
 
     const previousOptions = fileOptions.slice();
     fileOptions = files.map((_, index) => {
       const existing = previousOptions[index]
         ? { ...previousOptions[index] }
-        : createDefaultOptions();
-      const next = { ...existing, [key]: value };
-      if (forceFitAuto) next.fit_mode = 'auto';
+        : {};
+      const defaults = createDefaultOptions(hasImages);
+      const next = { ...defaults, ...existing, [key]: sanitizedValue };
+      if (!allowAuto) {
+        next.paper_size = sanitizeValue('paper_size', next.paper_size, allowAuto);
+        next.orientation = sanitizeValue('orientation', next.orientation, allowAuto);
+        next.fit_mode = sanitizeValue('fit_mode', next.fit_mode, allowAuto);
+      }
+      if (forceFitAuto) {
+        next.fit_mode = sanitizeValue('fit_mode', 'auto', allowAuto);
+      } else if (!allowAuto && (!next.fit_mode || next.fit_mode === 'auto')) {
+        next.fit_mode = defaults.fit_mode;
+      }
       return next;
     });
 
@@ -387,16 +462,50 @@
     syncGlobalControls();
   };
 
+  const isJpegFile = (file) => {
+    if (!file) return false;
+    const type = (file.type || '').toLowerCase();
+    if (type === 'image/jpeg') return true;
+    const name = (file.name || '').toLowerCase();
+    return name.endsWith('.jpg') || name.endsWith('.jpeg');
+  };
+
+  const isSupportedFile = (file) => {
+    if (!file) return false;
+    const type = (file.type || '').toLowerCase();
+    if (type === 'application/pdf' || type === 'image/jpeg') return true;
+    const name = (file.name || '').toLowerCase();
+    return name.endsWith('.pdf') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+  };
+
+  const hasImageUploads = () => files.some((file) => isJpegFile(file));
+
+  const sanitizeValue = (key, value, allowAuto) => {
+    if (allowAuto) return value;
+    if (value === 'auto' || !value) return FALLBACK_DEFAULTS[key];
+    return value;
+  };
+
+  const updateAutoOptionAvailability = (select, allowAuto, fallbackValue) => {
+    if (!select) return;
+    const autoOption = select.querySelector('option[value="auto"]');
+    if (autoOption) autoOption.disabled = !allowAuto;
+    if (!allowAuto && select.value === 'auto') {
+      select.value = fallbackValue;
+    }
+  };
+
   const addFiles = (newFiles) => {
     if (!newFiles?.length) return;
-    const incoming = Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    const incoming = Array.from(newFiles).filter(isSupportedFile);
     if (incoming.length === 0) { setStatus(translate('messages.pdf_only'), 'error'); return; }
     setStatus('');
     incoming.forEach(f => {
       ensureFileId(f);
       files.push(f);
       ranges.push('');
-      fileOptions.push(createDefaultOptions());
+      const defaults = createDefaultOptions(hasImageUploads());
+      fileOptions.push({ ...defaults });
     });
     refreshList();
     syncGlobalControls();
@@ -407,6 +516,7 @@
     ranges.splice(i, 1);
     fileOptions.splice(i, 1);
     refreshList();
+    syncGlobalControls();
   };
 
   filesDiv.addEventListener('click', (e) => {
@@ -537,21 +647,33 @@
     const i = Number(select.dataset.idx);
     const key = select.dataset.key;
     if (Number.isNaN(i) || !key) return;
-    const target = fileOptions[i] || (fileOptions[i] = createDefaultOptions());
-    target[key] = select.value;
+    const hasImages = hasImageUploads();
+    const allowAuto = !hasImages;
+    const target = fileOptions[i] || (fileOptions[i] = createDefaultOptions(hasImages));
+    target[key] = allowAuto ? select.value : sanitizeValue(key, select.value, allowAuto);
 
     if (key === 'orientation') {
       const row = select.closest('.file-row');
       const fitSelect = row?.querySelector('select.option-select[data-key="fit_mode"]');
       if (ROTATION_ORIENTATIONS.has(select.value)) {
-        target.fit_mode = 'auto';
+        target.fit_mode = sanitizeValue('fit_mode', 'auto', allowAuto);
         if (fitSelect) {
-          fitSelect.value = 'auto';
+          fitSelect.value = target.fit_mode;
           fitSelect.disabled = true;
+          updateAutoOptionAvailability(fitSelect, false, target.fit_mode);
         }
       } else if (fitSelect) {
         fitSelect.disabled = false;
+        updateAutoOptionAvailability(
+          fitSelect,
+          allowAuto,
+          sanitizeValue('fit_mode', fitSelect.value, allowAuto),
+        );
       }
+    } else if (!allowAuto) {
+      target.paper_size = sanitizeValue('paper_size', target.paper_size, allowAuto);
+      target.orientation = sanitizeValue('orientation', target.orientation, allowAuto);
+      target.fit_mode = sanitizeValue('fit_mode', target.fit_mode, allowAuto);
     }
   });
 
@@ -598,9 +720,11 @@
     if (outputName?.value) form.append('output_name', outputName.value);
     if (engine?.value) form.append('engine', engine.value);
 
+    const hasImages = hasImageUploads();
+    const allowAuto = !hasImages;
     const latestOptions = Array.from(document.querySelectorAll('.file-row')).map((row) => {
       const idx = Number(row.dataset.index);
-      const existing = fileOptions[idx] || createDefaultOptions();
+      const existing = fileOptions[idx] || createDefaultOptions(hasImages);
       const selects = row.querySelectorAll('.option-select');
       const next = { ...existing };
       selects.forEach((select) => {
@@ -608,6 +732,11 @@
         if (!key) return;
         next[key] = select.value;
       });
+      if (!allowAuto) {
+        next.paper_size = sanitizeValue('paper_size', next.paper_size, allowAuto);
+        next.orientation = sanitizeValue('orientation', next.orientation, allowAuto);
+        next.fit_mode = sanitizeValue('fit_mode', next.fit_mode, allowAuto);
+      }
       return next;
     });
 
