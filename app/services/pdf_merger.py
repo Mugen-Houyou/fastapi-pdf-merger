@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from anyio import to_thread
 from pypdf import PdfReader, PdfWriter, Transformation
 from pypdf._page import PageObject
+from PIL import Image, ImageOps
 
 try:  # pragma: no cover - optional dependency import guard
     import pikepdf  # type: ignore
@@ -123,10 +124,11 @@ class PdfMergerService:
 
             wanted_ranges = ranges[index] if index < len(ranges) else ""
             raw_options = options[index] if index < len(options) else None
+            pdf_bytes = self._ensure_pdf_bytes(data, upload.filename or "<unnamed>")
             payloads.append(
                 PdfMergerService._Payload(
                     filename=upload.filename or "<unnamed>",
-                    data=data,
+                    data=pdf_bytes,
                     ranges=wanted_ranges or "",
                     options=self._normalize_options(raw_options),
                 )
@@ -159,6 +161,33 @@ class PdfMergerService:
                 page = cast(PageObject, pdf.pages[page_index])
                 pages.append(self._render_page(page, payload.options))
         return pages
+
+    @staticmethod
+    def _ensure_pdf_bytes(data: bytes, filename: str) -> bytes:
+        if data.startswith(b"%PDF"):
+            return data
+        if data[:3] == b"\xff\xd8\xff":
+            return PdfMergerService._jpg_to_pdf(data, filename)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {filename}",
+        )
+
+    @staticmethod
+    def _jpg_to_pdf(data: bytes, filename: str) -> bytes:
+        buffer = io.BytesIO()
+        try:
+            with Image.open(io.BytesIO(data)) as image:
+                processed = ImageOps.exif_transpose(image)
+                if processed.mode != "RGB":
+                    processed = processed.convert("RGB")
+                processed.save(buffer, format="PDF")
+        except Exception as exc:  # pragma: no cover - defensive
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to convert '{filename}' to PDF: {exc}",
+            ) from exc
+        return buffer.getvalue()
 
     @staticmethod
     def _infer_orientation(page: PageObject) -> Orientation:
