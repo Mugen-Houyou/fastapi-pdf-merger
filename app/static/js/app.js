@@ -389,7 +389,14 @@
 
   const addFiles = (newFiles) => {
     if (!newFiles?.length) return;
-    const incoming = Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    const allowedMimeTypes = new Set(['application/pdf', 'image/jpeg', 'image/pjpeg', 'image/jpg']);
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg'];
+    const incoming = Array.from(newFiles).filter((f) => {
+      const type = (f.type || '').toLowerCase();
+      if (allowedMimeTypes.has(type)) return true;
+      const name = (f.name || '').toLowerCase();
+      return allowedExtensions.some((ext) => name.endsWith(ext));
+    });
     if (incoming.length === 0) { setStatus(translate('messages.pdf_only'), 'error'); return; }
     setStatus('');
     incoming.forEach(f => {

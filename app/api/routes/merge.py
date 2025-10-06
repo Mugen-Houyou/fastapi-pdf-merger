@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -12,7 +13,9 @@ router = APIRouter(tags=["merge"])
 
 @router.post("/merge", response_class=StreamingResponse, dependencies=[ApiKeyDependency])
 async def merge_pdf(
-    files: List[UploadFile] = File(..., description="Upload PDF files in desired order."),
+    files: List[UploadFile] = File(
+        ..., description="Upload PDF or JPG files in desired order."
+    ),
     ranges: Optional[str] = Form(
         None, description='JSON list of page ranges per file, e.g. ["1-3,5",""]'
     ),
@@ -33,9 +36,17 @@ async def merge_pdf(
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")
 
+    allowed_types = {"application/pdf", "image/jpeg", "image/pjpeg", "image/jpg"}
+    allowed_extensions = {".pdf", ".jpg", ".jpeg"}
     for upload in files:
-        if not upload.filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail=f"Not a PDF: {upload.filename}")
+        filename = upload.filename or ""
+        extension = Path(filename).suffix.lower()
+        content_type = (upload.content_type or "").lower()
+        if extension not in allowed_extensions and content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {upload.filename}",
+            )
 
     per_file_ranges: list[str] = []
     if ranges:

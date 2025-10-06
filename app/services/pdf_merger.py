@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from anyio import to_thread
 from pypdf import PdfReader, PdfWriter, Transformation
 from pypdf._page import PageObject
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 try:  # pragma: no cover - optional dependency import guard
     import pikepdf  # type: ignore
@@ -64,6 +65,7 @@ class PdfMergerService:
         filename: str
         data: bytes
         ranges: str
+        content_type: str
         options: LayoutOptions
 
     @staticmethod
@@ -128,6 +130,7 @@ class PdfMergerService:
                     filename=upload.filename or "<unnamed>",
                     data=data,
                     ranges=wanted_ranges or "",
+                    content_type=(upload.content_type or "").lower(),
                     options=self._normalize_options(raw_options),
                 )
             )
@@ -141,7 +144,9 @@ class PdfMergerService:
         pages: list[PageObject] = []
         for payload in payloads:
             try:
-                pdf = PdfReader(io.BytesIO(payload.data))
+                pdf = self._load_document(payload)
+            except HTTPException:
+                raise
             except Exception as exc:  # pragma: no cover - defensive
                 raise HTTPException(
                     status_code=400,
@@ -159,6 +164,62 @@ class PdfMergerService:
                 page = cast(PageObject, pdf.pages[page_index])
                 pages.append(self._render_page(page, payload.options))
         return pages
+
+    def _load_document(self, payload: _Payload) -> PdfReader:
+        filename = payload.filename.lower()
+        content_type = payload.content_type
+        if filename.endswith(".pdf") or content_type == "application/pdf":
+            return PdfReader(io.BytesIO(payload.data))
+        jpeg_types = {"image/jpeg", "image/pjpeg", "image/jpg"}
+        if filename.endswith((".jpg", ".jpeg")) or (
+            content_type in jpeg_types
+            or (content_type.startswith("image/") and "jpeg" in content_type)
+        ):
+            pdf_bytes = self._convert_jpeg_to_pdf(payload.data, payload.filename)
+            return PdfReader(io.BytesIO(pdf_bytes))
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {payload.filename}",
+        )
+
+    @staticmethod
+    def _convert_jpeg_to_pdf(data: bytes, filename: str) -> bytes:
+        try:
+            with Image.open(io.BytesIO(data)) as image:
+                image = ImageOps.exif_transpose(image)
+                prepared = PdfMergerService._prepare_image(image).copy()
+                output = io.BytesIO()
+                prepared.save(output, format="PDF")
+        except UnidentifiedImageError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid JPEG image: {filename}"
+            ) from exc
+        except HTTPException:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to process image '{filename}': {exc}",
+            ) from exc
+
+        output.seek(0)
+        return output.read()
+
+    @staticmethod
+    def _prepare_image(image: Image.Image) -> Image.Image:
+        if image.mode in ("RGB", "L"):
+            return image.convert("RGB")
+
+        if image.mode in ("RGBA", "LA") or (
+            image.mode == "P" and "transparency" in image.info
+        ):
+            rgba_image = image.convert("RGBA")
+            background = Image.new("RGBA", rgba_image.size, (255, 255, 255, 255))
+            background.alpha_composite(rgba_image)
+            return background.convert("RGB")
+
+        return image.convert("RGB")
 
     @staticmethod
     def _infer_orientation(page: PageObject) -> Orientation:
