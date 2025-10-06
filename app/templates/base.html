@@ -5,6 +5,8 @@
   <meta charset="utf-8"/>
   <title>{% block title %}{{ t.page_title if t is defined else 'PDF Merger' }}{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf/notyf.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/notyf/notyf.min.js"></script>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
   <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
   {% block head %}{% endblock %}
@@ -23,6 +25,12 @@
   </div>
   <script>
     // 서버값을 JS에서 쓰기 위한 전역(필요 최소한만)
+    const notyf = new Notyf({
+      duration: 5000,
+      ripple: true,
+      position: { x: 'center', y: 'top' }
+    });
+
     window.__PDFMERGER__ = {
       apiKeyRequired: {{ feature_flags.api_key_required | tojson }},
       defaults: {{ defaults | tojson }},

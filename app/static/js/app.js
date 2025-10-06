@@ -682,6 +682,7 @@
       a.remove();
       URL.revokeObjectURL(url);
       setStatus(translate('messages.merged'), 'success');
+      notyf.success(translate('messages.merged'));
     } catch (err) {
       console.error(err);
       const defaultError = translate('messages.merge_failed');
