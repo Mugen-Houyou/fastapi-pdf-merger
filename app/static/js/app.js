@@ -465,6 +465,73 @@
   let dropAfter = false;
   let touchPointerId = null;
   let touchDragHandle = null;
+  let lastPointerClientY = null;
+
+  const SCROLL_EDGE_THRESHOLD = 80;
+  const MAX_SCROLL_SPEED = 28;
+  let autoScrollVelocity = 0;
+  let autoScrollFrame = null;
+
+  const stopAutoScroll = () => {
+    autoScrollVelocity = 0;
+    lastPointerClientY = null;
+    if (autoScrollFrame !== null) {
+      cancelAnimationFrame(autoScrollFrame);
+      autoScrollFrame = null;
+    }
+  };
+
+  const stepAutoScroll = () => {
+    if (autoScrollVelocity === 0) {
+      autoScrollFrame = null;
+      return;
+    }
+    const scrollElement = document.scrollingElement || document.documentElement;
+    if (!scrollElement) {
+      stopAutoScroll();
+      return;
+    }
+    const maxScrollTop = scrollElement.scrollHeight - window.innerHeight;
+    if ((autoScrollVelocity < 0 && scrollElement.scrollTop <= 0) ||
+        (autoScrollVelocity > 0 && scrollElement.scrollTop >= maxScrollTop)) {
+      stopAutoScroll();
+      return;
+    }
+    window.scrollBy(0, autoScrollVelocity);
+    if (lastPointerClientY !== null) {
+      updateDropTargetFromClientY(lastPointerClientY);
+    }
+    autoScrollFrame = requestAnimationFrame(stepAutoScroll);
+  };
+
+  const updateAutoScroll = (clientY) => {
+    if (dragIndex === null) {
+      stopAutoScroll();
+      return;
+    }
+    if (!Number.isFinite(clientY)) {
+      stopAutoScroll();
+      return;
+    }
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const edge = SCROLL_EDGE_THRESHOLD;
+    let velocity = 0;
+
+    if (clientY < edge) {
+      const intensity = Math.min(1, (edge - clientY) / edge);
+      velocity = -Math.max(1, Math.round(intensity * MAX_SCROLL_SPEED));
+    } else if (clientY > viewportHeight - edge) {
+      const intensity = Math.min(1, (clientY - (viewportHeight - edge)) / edge);
+      velocity = Math.max(1, Math.round(intensity * MAX_SCROLL_SPEED));
+    }
+
+    if (velocity !== 0) {
+      autoScrollVelocity = velocity;
+      if (autoScrollFrame === null) autoScrollFrame = requestAnimationFrame(stepAutoScroll);
+    } else {
+      stopAutoScroll();
+    }
+  };
 
   const updateDropIndicator = (row, after) => {
     if (dropTarget === row && dropAfter === after) return;
@@ -490,80 +557,7 @@
     dropAfter = false;
   };
 
-  filesDiv.addEventListener('dragstart', (e) => {
-    const handle = e.target.closest('.drag-handle');
-    if (!handle) {
-      e.preventDefault();
-      return;
-    }
-    const row = handle.closest('.file-row');
-    if (!row) {
-      e.preventDefault();
-      return;
-    }
-    const index = Number(row.dataset.index);
-    if (Number.isNaN(index)) {
-      e.preventDefault();
-      return;
-    }
-    dragIndex = index;
-    row.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index));
-  });
-
-  filesDiv.addEventListener('dragover', (e) => {
-    if (dragIndex === null) return;
-    const row = e.target.closest('.file-row');
-    if (!row) {
-      clearDragIndicators();
-      e.preventDefault();
-      return;
-    }
-    e.preventDefault();
-    const rect = row.getBoundingClientRect();
-    const after = e.clientY > rect.top + rect.height / 2;
-    updateDropIndicator(row, after);
-    e.dataTransfer.dropEffect = 'move';
-  });
-
-  filesDiv.addEventListener('dragleave', (e) => {
-    const row = e.target.closest('.file-row');
-    if (!row) return;
-    row.classList.remove('drag-over-top', 'drag-over-bottom');
-    if (row === dropTarget) {
-      dropTarget = null;
-      dropAfter = false;
-    }
-  });
-
-  filesDiv.addEventListener('drop', (e) => {
-    if (dragIndex === null) return;
-    e.preventDefault();
-    let targetIndex;
-    if (dropTarget) {
-      targetIndex = Number(dropTarget.dataset.index);
-      if (Number.isNaN(targetIndex)) {
-        clearDragIndicators();
-        dragIndex = null;
-        return;
-      }
-      if (dropAfter) targetIndex += 1;
-    } else {
-      targetIndex = files.length;
-    }
-    if (dragIndex < targetIndex) targetIndex -= 1;
-    reorderItems(dragIndex, targetIndex);
-    dragIndex = null;
-    clearDragIndicators();
-  });
-
-  filesDiv.addEventListener('dragend', () => {
-    dragIndex = null;
-    clearDragIndicators();
-  });
-
-  const updateTouchDropTarget = (clientY) => {
+  const updateDropTargetFromClientY = (clientY) => {
     const rows = Array.from(filesDiv.querySelectorAll('.file-row'));
     const candidates = rows.filter(row => !row.classList.contains('dragging'));
     if (!candidates.length) {
@@ -595,6 +589,86 @@
     updateDropIndicator(target, after);
   };
 
+  filesDiv.addEventListener('dragstart', (e) => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) {
+      e.preventDefault();
+      return;
+    }
+    const row = handle.closest('.file-row');
+    if (!row) {
+      e.preventDefault();
+      return;
+    }
+    const index = Number(row.dataset.index);
+    if (Number.isNaN(index)) {
+      e.preventDefault();
+      return;
+    }
+    dragIndex = index;
+    row.classList.add('dragging');
+    lastPointerClientY = Number.isFinite(e.clientY) ? e.clientY : null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  });
+
+  filesDiv.addEventListener('dragover', (e) => {
+    if (dragIndex === null) return;
+    if (!Number.isFinite(e.clientY)) return;
+    lastPointerClientY = e.clientY;
+    updateDropTargetFromClientY(e.clientY);
+    updateAutoScroll(e.clientY);
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  });
+
+  document.addEventListener('dragover', (e) => {
+    if (dragIndex === null) return;
+    if (!Number.isFinite(e.clientY)) return;
+    if (filesDiv.contains(e.target)) return;
+    lastPointerClientY = e.clientY;
+    updateDropTargetFromClientY(e.clientY);
+    updateAutoScroll(e.clientY);
+  });
+
+  filesDiv.addEventListener('dragleave', (e) => {
+    const row = e.target.closest('.file-row');
+    if (!row) return;
+    row.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (row === dropTarget) {
+      dropTarget = null;
+      dropAfter = false;
+    }
+  });
+
+  filesDiv.addEventListener('drop', (e) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    stopAutoScroll();
+    let targetIndex;
+    if (dropTarget) {
+      targetIndex = Number(dropTarget.dataset.index);
+      if (Number.isNaN(targetIndex)) {
+        clearDragIndicators();
+        dragIndex = null;
+        return;
+      }
+      if (dropAfter) targetIndex += 1;
+    } else {
+      targetIndex = files.length;
+    }
+    if (dragIndex < targetIndex) targetIndex -= 1;
+    reorderItems(dragIndex, targetIndex);
+    dragIndex = null;
+    clearDragIndicators();
+  });
+
+  filesDiv.addEventListener('dragend', () => {
+    dragIndex = null;
+    clearDragIndicators();
+    stopAutoScroll();
+  });
+
   filesDiv.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse') return;
     if (touchPointerId !== null) return;
@@ -610,14 +684,21 @@
     touchPointerId = e.pointerId;
     touchDragHandle = handle;
     handle.setPointerCapture?.(e.pointerId);
-    updateTouchDropTarget(e.clientY);
+    if (Number.isFinite(e.clientY)) {
+      lastPointerClientY = e.clientY;
+      updateDropTargetFromClientY(e.clientY);
+      updateAutoScroll(e.clientY);
+    }
     e.preventDefault();
   });
 
   filesDiv.addEventListener('pointermove', (e) => {
     if (touchPointerId === null || e.pointerId !== touchPointerId) return;
     e.preventDefault();
-    updateTouchDropTarget(e.clientY);
+    if (!Number.isFinite(e.clientY)) return;
+    lastPointerClientY = e.clientY;
+    updateDropTargetFromClientY(e.clientY);
+    updateAutoScroll(e.clientY);
   });
 
   const handlePointerRelease = (e) => {
@@ -642,6 +723,7 @@
     }
     touchDragHandle = null;
     touchPointerId = null;
+    stopAutoScroll();
   };
 
   filesDiv.addEventListener('pointerup', handlePointerRelease);
