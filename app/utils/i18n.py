@@ -113,7 +113,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
         "template": {
             "page_title": "PDF 병합기",
             "hero_title": "PDF 병합기",
-            "drop_instruction": "파일을 DRAG & DROP하거나 클릭하여 업로드하세요.",
+            "drop_instruction": "여기에 DRAG & DROP 또는 클릭하여 업로드하세요.",
             "upload_limit_note": "총 {limit}MB까지 업로드할 수 있습니다. PDF, JPG, PNG 파일을 지원합니다.",
             "empty_state": "아직 추가된 파일이 없습니다. 위에서 파일을 추가하세요.",
             "output_label": "출력 파일 이름",
