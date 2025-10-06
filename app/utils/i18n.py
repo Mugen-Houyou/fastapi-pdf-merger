@@ -113,9 +113,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
         "template": {
             "page_title": "PDF 병합기",
             "hero_title": "PDF 병합기",
-            "hero_description": "여러 PDF 파일을 자유롭게 커스터마이즈하여 하나의 문서로 합치세요.",
             "drop_instruction": "PDF 파일을 DRAG & DROP 또는 클릭하여 업로드하세요.",
-            "drop_detail": "파일은 병합을 선택할 때까지 이 기기에만 머무릅니다.",
             "upload_limit_note": "총 {limit}MB까지 업로드할 수 있습니다.",
             "empty_state": "아직 추가된 파일이 없습니다. 위에서 PDF를 추가하세요.",
             "output_label": "출력 파일 이름",

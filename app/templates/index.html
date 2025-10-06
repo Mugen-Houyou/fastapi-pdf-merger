@@ -6,7 +6,6 @@
 {% block body %}
 <header class="hero">
   <h1>{{ t.hero_title }}</h1>
-  <p>{{ t.hero_description }}</p>
 </header>
 
 <section class="card">
@@ -15,7 +14,6 @@
     <div class="dropzone-inner">
       <div class="drop-icon">⬆️</div>
       <strong>{{ t.drop_instruction }}</strong>
-      <p>{{ t.drop_detail }}</p>
       <p class="upload-limit">{{ t.upload_limit_note.format(limit=limits.total_upload_mb) }}</p>
     </div>
   </label>
