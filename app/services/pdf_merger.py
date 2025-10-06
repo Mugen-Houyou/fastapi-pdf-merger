@@ -68,6 +68,12 @@ class PdfMergerService:
         content_type: str
         options: LayoutOptions
 
+    _JPEG_DEFAULT_OPTIONS = LayoutOptions(
+        paper_size="A4",
+        orientation="portrait",
+        fit_mode="letterbox",
+    )
+
     @staticmethod
     def _normalize_options(raw: Optional[dict[str, str]]) -> LayoutOptions:
         if not raw:
@@ -125,13 +131,18 @@ class PdfMergerService:
 
             wanted_ranges = ranges[index] if index < len(ranges) else ""
             raw_options = options[index] if index < len(options) else None
+            content_type = (upload.content_type or "").lower()
             payloads.append(
                 PdfMergerService._Payload(
                     filename=upload.filename or "<unnamed>",
                     data=data,
                     ranges=wanted_ranges or "",
-                    content_type=(upload.content_type or "").lower(),
-                    options=self._normalize_options(raw_options),
+                    content_type=content_type,
+                    options=self._apply_default_layout(
+                        self._normalize_options(raw_options),
+                        upload.filename or "",
+                        content_type,
+                    ),
                 )
             )
 
@@ -165,22 +176,58 @@ class PdfMergerService:
                 pages.append(self._render_page(page, payload.options))
         return pages
 
-    def _load_document(self, payload: _Payload) -> PdfReader:
-        filename = payload.filename.lower()
-        content_type = payload.content_type
-        if filename.endswith(".pdf") or content_type == "application/pdf":
-            return PdfReader(io.BytesIO(payload.data))
+    @staticmethod
+    def _is_jpeg_source(filename: str, content_type: str) -> bool:
+        lowered_name = filename.lower()
+        lowered_type = content_type.lower()
+        if lowered_name.endswith((".jpg", ".jpeg")):
+            return True
         jpeg_types = {"image/jpeg", "image/pjpeg", "image/jpg"}
-        if filename.endswith((".jpg", ".jpeg")) or (
-            content_type in jpeg_types
-            or (content_type.startswith("image/") and "jpeg" in content_type)
-        ):
+        if lowered_type in jpeg_types:
+            return True
+        return lowered_type.startswith("image/") and "jpeg" in lowered_type
+
+    def _load_document(self, payload: _Payload) -> PdfReader:
+        filename = payload.filename
+        lowered_name = filename.lower()
+        content_type = payload.content_type
+        if lowered_name.endswith(".pdf") or content_type == "application/pdf":
+            return PdfReader(io.BytesIO(payload.data))
+        if self._is_jpeg_source(filename, content_type):
             pdf_bytes = self._convert_jpeg_to_pdf(payload.data, payload.filename)
             return PdfReader(io.BytesIO(pdf_bytes))
 
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported file type: {payload.filename}",
+        )
+
+    def _apply_default_layout(
+        self,
+        options: LayoutOptions,
+        filename: str,
+        content_type: str,
+    ) -> LayoutOptions:
+        defaults = (
+            self._JPEG_DEFAULT_OPTIONS
+            if self._is_jpeg_source(filename, content_type)
+            else LayoutOptions()
+        )
+
+        paper_size = cast(Optional[PaperSize], options.paper_size or defaults.paper_size)
+        fit_mode = cast(Optional[FitMode], options.fit_mode or defaults.fit_mode)
+        rotation = options.rotation
+        orientation: Optional[Orientation]
+        if options.orientation is not None or rotation is not None:
+            orientation = options.orientation
+        else:
+            orientation = cast(Optional[Orientation], defaults.orientation)
+
+        return LayoutOptions(
+            paper_size=paper_size,
+            orientation=orientation,
+            rotation=rotation,
+            fit_mode=fit_mode,
         )
 
     @staticmethod

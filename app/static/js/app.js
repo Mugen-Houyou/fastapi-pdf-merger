@@ -352,6 +352,25 @@
     };
   };
 
+  const isJpegFile = (file) => {
+    if (!file) return false;
+    const type = (file.type || '').toLowerCase();
+    if (type && type.includes('jpeg')) return true;
+    const name = (file.name || '').toLowerCase();
+    return name.endsWith('.jpg') || name.endsWith('.jpeg');
+  };
+
+  const createOptionsForFile = (file) => {
+    if (isJpegFile(file)) {
+      return {
+        paper_size: 'A4',
+        orientation: 'portrait',
+        fit_mode: 'letterbox',
+      };
+    }
+    return createDefaultOptions();
+  };
+
   const syncGlobalControls = () => {
     if (globalPaper) globalPaper.value = globalOptions.paper_size || 'auto';
     if (globalOrientation) globalOrientation.value = globalOptions.orientation || 'auto';
@@ -403,7 +422,7 @@
       ensureFileId(f);
       files.push(f);
       ranges.push('');
-      fileOptions.push(createDefaultOptions());
+      fileOptions.push(createOptionsForFile(f));
     });
     refreshList();
     syncGlobalControls();
