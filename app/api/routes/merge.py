@@ -14,7 +14,7 @@ router = APIRouter(tags=["merge"])
 @router.post("/merge", response_class=StreamingResponse, dependencies=[ApiKeyDependency])
 async def merge_pdf(
     files: List[UploadFile] = File(
-        ..., description="Upload PDF or JPG files in desired order."
+        ..., description="Upload PDF, JPG, or PNG files in desired order."
     ),
     ranges: Optional[str] = Form(
         None, description='JSON list of page ranges per file, e.g. ["1-3,5",""]'
@@ -36,8 +36,15 @@ async def merge_pdf(
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")
 
-    allowed_types = {"application/pdf", "image/jpeg", "image/pjpeg", "image/jpg"}
-    allowed_extensions = {".pdf", ".jpg", ".jpeg"}
+    allowed_types = {
+        "application/pdf",
+        "image/jpeg",
+        "image/pjpeg",
+        "image/jpg",
+        "image/png",
+        "image/x-png",
+    }
+    allowed_extensions = {".pdf", ".jpg", ".jpeg", ".png"}
     for upload in files:
         filename = upload.filename or ""
         extension = Path(filename).suffix.lower()

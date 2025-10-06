@@ -68,7 +68,7 @@ class PdfMergerService:
         content_type: str
         options: LayoutOptions
 
-    _JPEG_DEFAULT_OPTIONS = LayoutOptions(
+    _IMAGE_DEFAULT_OPTIONS = LayoutOptions(
         paper_size="A4",
         orientation="portrait",
         fit_mode="letterbox",
@@ -177,15 +177,23 @@ class PdfMergerService:
         return pages
 
     @staticmethod
-    def _is_jpeg_source(filename: str, content_type: str) -> bool:
+    def _is_supported_image_source(filename: str, content_type: str) -> bool:
         lowered_name = filename.lower()
         lowered_type = content_type.lower()
-        if lowered_name.endswith((".jpg", ".jpeg")):
+        if lowered_name.endswith((".jpg", ".jpeg", ".png")):
             return True
-        jpeg_types = {"image/jpeg", "image/pjpeg", "image/jpg"}
-        if lowered_type in jpeg_types:
+        image_types = {
+            "image/jpeg",
+            "image/pjpeg",
+            "image/jpg",
+            "image/png",
+            "image/x-png",
+        }
+        if lowered_type in image_types:
             return True
-        return lowered_type.startswith("image/") and "jpeg" in lowered_type
+        if lowered_type.startswith("image/"):
+            return any(token in lowered_type for token in ("jpeg", "jpg", "png"))
+        return False
 
     def _load_document(self, payload: _Payload) -> PdfReader:
         filename = payload.filename
@@ -193,8 +201,8 @@ class PdfMergerService:
         content_type = payload.content_type
         if lowered_name.endswith(".pdf") or content_type == "application/pdf":
             return PdfReader(io.BytesIO(payload.data))
-        if self._is_jpeg_source(filename, content_type):
-            pdf_bytes = self._convert_jpeg_to_pdf(payload.data, payload.filename)
+        if self._is_supported_image_source(filename, content_type):
+            pdf_bytes = self._convert_image_to_pdf(payload.data, payload.filename)
             return PdfReader(io.BytesIO(pdf_bytes))
 
         raise HTTPException(
@@ -209,8 +217,8 @@ class PdfMergerService:
         content_type: str,
     ) -> LayoutOptions:
         defaults = (
-            self._JPEG_DEFAULT_OPTIONS
-            if self._is_jpeg_source(filename, content_type)
+            self._IMAGE_DEFAULT_OPTIONS
+            if self._is_supported_image_source(filename, content_type)
             else LayoutOptions()
         )
 
@@ -231,7 +239,7 @@ class PdfMergerService:
         )
 
     @staticmethod
-    def _convert_jpeg_to_pdf(data: bytes, filename: str) -> bytes:
+    def _convert_image_to_pdf(data: bytes, filename: str) -> bytes:
         try:
             with Image.open(io.BytesIO(data)) as image:
                 image = ImageOps.exif_transpose(image)
@@ -240,7 +248,7 @@ class PdfMergerService:
                 prepared.save(output, format="PDF")
         except UnidentifiedImageError as exc:
             raise HTTPException(
-                status_code=400, detail=f"Invalid JPEG image: {filename}"
+                status_code=400, detail=f"Invalid image file: {filename}"
             ) from exc
         except HTTPException:
             raise

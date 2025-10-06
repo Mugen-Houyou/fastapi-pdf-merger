@@ -18,8 +18,8 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
         "template": {
             "page_title": "PDF Merger",
             "hero_title": "PDF Merger",
-            "hero_description": "Combine multiple PDF documents and JPG images into a single file and control the order and page ranges with ease.",
-            "drop_instruction": "Drop PDF or JPG files here or click to browse",
+            "hero_description": "Combine multiple PDF documents and JPG/PNG images into a single file and control the order and page ranges with ease.",
+            "drop_instruction": "Drop PDF, JPG, or PNG files here or click to browse",
             "drop_detail": "Your files will stay on this device until you choose to merge them.",
             "upload_limit_note": "You can upload up to {limit} MB in total.",
             "empty_state": "No files added yet. Add files above to configure their ranges.",
@@ -62,7 +62,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             },
             "messages": {
                 "empty": "No files added yet. Add files above to configure their ranges.",
-                "pdf_only": "Only PDF or JPG files are supported.",
+                "pdf_only": "Only PDF, JPG, or PNG files are supported.",
                 "cleared": "Cleared selected files.",
                 "select_one": "Select at least one file.",
                 "merging": "Merging files…",
@@ -113,7 +113,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
         "template": {
             "page_title": "PDF 병합기",
             "hero_title": "PDF 병합기",
-            "drop_instruction": "PDF 또는 JPG 파일을 드래그앤드롭하거나 클릭하여 업로드하세요.",
+            "drop_instruction": "PDF, JPG 또는 PNG 파일을 드래그앤드롭하거나 클릭하여 업로드하세요.",
             "upload_limit_note": "총 {limit}MB까지 업로드할 수 있습니다.",
             "empty_state": "아직 추가된 파일이 없습니다. 위에서 파일을 추가하세요.",
             "output_label": "출력 파일 이름",
@@ -155,7 +155,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             },
             "messages": {
                 "empty": "아직 추가된 파일이 없습니다. 위에서 파일을 추가하세요.",
-                "pdf_only": "PDF 또는 JPG 파일만 지원합니다.",
+                "pdf_only": "PDF, JPG 또는 PNG 파일만 지원합니다.",
                 "cleared": "선택한 파일을 지웠습니다.",
                 "select_one": "최소 한 개의 파일을 선택하세요.",
                 "merging": "파일 병합 중…",

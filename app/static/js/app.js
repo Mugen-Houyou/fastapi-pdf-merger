@@ -352,16 +352,16 @@
     };
   };
 
-  const isJpegFile = (file) => {
+  const isRasterImageFile = (file) => {
     if (!file) return false;
     const type = (file.type || '').toLowerCase();
-    if (type && type.includes('jpeg')) return true;
+    if (type && (type.includes('jpeg') || type.includes('png'))) return true;
     const name = (file.name || '').toLowerCase();
-    return name.endsWith('.jpg') || name.endsWith('.jpeg');
+    return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png');
   };
 
   const createOptionsForFile = (file) => {
-    if (isJpegFile(file)) {
+    if (isRasterImageFile(file)) {
       return {
         paper_size: 'A4',
         orientation: 'portrait',
@@ -408,8 +408,8 @@
 
   const addFiles = (newFiles) => {
     if (!newFiles?.length) return;
-    const allowedMimeTypes = new Set(['application/pdf', 'image/jpeg', 'image/pjpeg', 'image/jpg']);
-    const allowedExtensions = ['.pdf', '.jpg', '.jpeg'];
+    const allowedMimeTypes = new Set(['application/pdf', 'image/jpeg', 'image/pjpeg', 'image/jpg', 'image/png', 'image/x-png']);
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
     const incoming = Array.from(newFiles).filter((f) => {
       const type = (f.type || '').toLowerCase();
       if (allowedMimeTypes.has(type)) return true;
