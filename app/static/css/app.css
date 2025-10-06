@@ -303,6 +303,7 @@ body.app {
     background: rgba(37, 99, 235, .08);
     color: var(--accent);
     cursor: grab;
+    touch-action: none;
     transition: background .2s ease, border-color .2s ease, transform .2s ease;
 }
 

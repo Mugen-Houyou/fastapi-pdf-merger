@@ -463,6 +463,24 @@
   let dragIndex = null;
   let dropTarget = null;
   let dropAfter = false;
+  let touchPointerId = null;
+  let touchDragHandle = null;
+
+  const updateDropIndicator = (row, after) => {
+    if (dropTarget === row && dropAfter === after) return;
+    filesDiv.querySelectorAll('.file-row').forEach(r => {
+      if (r !== row) r.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    if (row) {
+      row.classList.remove('drag-over-top', 'drag-over-bottom');
+      row.classList.add(after ? 'drag-over-bottom' : 'drag-over-top');
+      dropTarget = row;
+      dropAfter = after;
+    } else {
+      dropTarget = null;
+      dropAfter = false;
+    }
+  };
 
   const clearDragIndicators = () => {
     filesDiv.querySelectorAll('.file-row').forEach(row => {
@@ -505,12 +523,7 @@
     e.preventDefault();
     const rect = row.getBoundingClientRect();
     const after = e.clientY > rect.top + rect.height / 2;
-    if (dropTarget !== row || dropAfter !== after) {
-      clearDragIndicators();
-      row.classList.add(after ? 'drag-over-bottom' : 'drag-over-top');
-      dropTarget = row;
-      dropAfter = after;
-    }
+    updateDropIndicator(row, after);
     e.dataTransfer.dropEffect = 'move';
   });
 
@@ -549,6 +562,90 @@
     dragIndex = null;
     clearDragIndicators();
   });
+
+  const updateTouchDropTarget = (clientY) => {
+    const rows = Array.from(filesDiv.querySelectorAll('.file-row'));
+    const candidates = rows.filter(row => !row.classList.contains('dragging'));
+    if (!candidates.length) {
+      updateDropIndicator(null, false);
+      return;
+    }
+
+    let target = null;
+    let after = false;
+    for (const row of candidates) {
+      const rect = row.getBoundingClientRect();
+      if (clientY < rect.top) {
+        target = row;
+        after = false;
+        break;
+      }
+      if (clientY <= rect.bottom) {
+        target = row;
+        after = clientY > rect.top + rect.height / 2;
+        break;
+      }
+    }
+
+    if (!target) {
+      target = candidates[candidates.length - 1];
+      after = true;
+    }
+
+    updateDropIndicator(target, after);
+  };
+
+  filesDiv.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return;
+    if (touchPointerId !== null) return;
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    const row = handle.closest('.file-row');
+    if (!row) return;
+    const index = Number(row.dataset.index);
+    if (Number.isNaN(index)) return;
+
+    dragIndex = index;
+    row.classList.add('dragging');
+    touchPointerId = e.pointerId;
+    touchDragHandle = handle;
+    handle.setPointerCapture?.(e.pointerId);
+    updateTouchDropTarget(e.clientY);
+    e.preventDefault();
+  });
+
+  filesDiv.addEventListener('pointermove', (e) => {
+    if (touchPointerId === null || e.pointerId !== touchPointerId) return;
+    e.preventDefault();
+    updateTouchDropTarget(e.clientY);
+  });
+
+  const handlePointerRelease = (e) => {
+    if (touchPointerId === null || e.pointerId !== touchPointerId) return;
+    e.preventDefault();
+    let targetIndex;
+    if (dropTarget) {
+      targetIndex = Number(dropTarget.dataset.index);
+      if (Number.isNaN(targetIndex)) targetIndex = files.length;
+      if (dropAfter) targetIndex += 1;
+    } else {
+      targetIndex = files.length;
+    }
+    if (dragIndex !== null) {
+      if (dragIndex < targetIndex) targetIndex -= 1;
+      reorderItems(dragIndex, targetIndex);
+    }
+    dragIndex = null;
+    clearDragIndicators();
+    if (touchDragHandle) {
+      touchDragHandle.releasePointerCapture?.(touchPointerId);
+    }
+    touchDragHandle = null;
+    touchPointerId = null;
+  };
+
+  filesDiv.addEventListener('pointerup', handlePointerRelease);
+  filesDiv.addEventListener('pointercancel', handlePointerRelease);
 
   filesDiv.addEventListener('input', (e) => {
     const input = e.target;
