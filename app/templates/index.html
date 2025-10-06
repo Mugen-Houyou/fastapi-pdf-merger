@@ -10,7 +10,12 @@
 
 <section class="card">
   <label class="dropzone" id="dropBox">
-    <input id="fileInput" type="file" accept="application/pdf" multiple />
+      <input
+      id="fileInput"
+      type="file"
+      accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
+      multiple
+    />
     <div class="dropzone-inner">
       <div class="drop-icon">⬆️</div>
       <strong>{{ t.drop_instruction }}</strong>

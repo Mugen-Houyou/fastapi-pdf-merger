@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from anyio import to_thread
 from pypdf import PdfReader, PdfWriter, Transformation
 from pypdf._page import PageObject
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 try:  # pragma: no cover - optional dependency import guard
     import pikepdf  # type: ignore
@@ -64,7 +65,14 @@ class PdfMergerService:
         filename: str
         data: bytes
         ranges: str
+        content_type: str
         options: LayoutOptions
+
+    _IMAGE_DEFAULT_OPTIONS = LayoutOptions(
+        paper_size="A4",
+        orientation="portrait",
+        fit_mode="letterbox",
+    )
 
     @staticmethod
     def _normalize_options(raw: Optional[dict[str, str]]) -> LayoutOptions:
@@ -123,12 +131,18 @@ class PdfMergerService:
 
             wanted_ranges = ranges[index] if index < len(ranges) else ""
             raw_options = options[index] if index < len(options) else None
+            content_type = (upload.content_type or "").lower()
             payloads.append(
                 PdfMergerService._Payload(
                     filename=upload.filename or "<unnamed>",
                     data=data,
                     ranges=wanted_ranges or "",
-                    options=self._normalize_options(raw_options),
+                    content_type=content_type,
+                    options=self._apply_default_layout(
+                        self._normalize_options(raw_options),
+                        upload.filename or "",
+                        content_type,
+                    ),
                 )
             )
 
@@ -141,7 +155,9 @@ class PdfMergerService:
         pages: list[PageObject] = []
         for payload in payloads:
             try:
-                pdf = PdfReader(io.BytesIO(payload.data))
+                pdf = self._load_document(payload)
+            except HTTPException:
+                raise
             except Exception as exc:  # pragma: no cover - defensive
                 raise HTTPException(
                     status_code=400,
@@ -159,6 +175,106 @@ class PdfMergerService:
                 page = cast(PageObject, pdf.pages[page_index])
                 pages.append(self._render_page(page, payload.options))
         return pages
+
+    @staticmethod
+    def _is_supported_image_source(filename: str, content_type: str) -> bool:
+        lowered_name = filename.lower()
+        lowered_type = content_type.lower()
+        if lowered_name.endswith((".jpg", ".jpeg", ".png")):
+            return True
+        image_types = {
+            "image/jpeg",
+            "image/pjpeg",
+            "image/jpg",
+            "image/png",
+            "image/x-png",
+        }
+        if lowered_type in image_types:
+            return True
+        if lowered_type.startswith("image/"):
+            return any(token in lowered_type for token in ("jpeg", "jpg", "png"))
+        return False
+
+    def _load_document(self, payload: _Payload) -> PdfReader:
+        filename = payload.filename
+        lowered_name = filename.lower()
+        content_type = payload.content_type
+        if lowered_name.endswith(".pdf") or content_type == "application/pdf":
+            return PdfReader(io.BytesIO(payload.data))
+        if self._is_supported_image_source(filename, content_type):
+            pdf_bytes = self._convert_image_to_pdf(payload.data, payload.filename)
+            return PdfReader(io.BytesIO(pdf_bytes))
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {payload.filename}",
+        )
+
+    def _apply_default_layout(
+        self,
+        options: LayoutOptions,
+        filename: str,
+        content_type: str,
+    ) -> LayoutOptions:
+        defaults = (
+            self._IMAGE_DEFAULT_OPTIONS
+            if self._is_supported_image_source(filename, content_type)
+            else LayoutOptions()
+        )
+
+        paper_size = cast(Optional[PaperSize], options.paper_size or defaults.paper_size)
+        fit_mode = cast(Optional[FitMode], options.fit_mode or defaults.fit_mode)
+        rotation = options.rotation
+        orientation: Optional[Orientation]
+        if options.orientation is not None or rotation is not None:
+            orientation = options.orientation
+        else:
+            orientation = cast(Optional[Orientation], defaults.orientation)
+
+        return LayoutOptions(
+            paper_size=paper_size,
+            orientation=orientation,
+            rotation=rotation,
+            fit_mode=fit_mode,
+        )
+
+    @staticmethod
+    def _convert_image_to_pdf(data: bytes, filename: str) -> bytes:
+        try:
+            with Image.open(io.BytesIO(data)) as image:
+                image = ImageOps.exif_transpose(image)
+                prepared = PdfMergerService._prepare_image(image).copy()
+                output = io.BytesIO()
+                prepared.save(output, format="PDF")
+        except UnidentifiedImageError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid image file: {filename}"
+            ) from exc
+        except HTTPException:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to process image '{filename}': {exc}",
+            ) from exc
+
+        output.seek(0)
+        return output.read()
+
+    @staticmethod
+    def _prepare_image(image: Image.Image) -> Image.Image:
+        if image.mode in ("RGB", "L"):
+            return image.convert("RGB")
+
+        if image.mode in ("RGBA", "LA") or (
+            image.mode == "P" and "transparency" in image.info
+        ):
+            rgba_image = image.convert("RGBA")
+            background = Image.new("RGBA", rgba_image.size, (255, 255, 255, 255))
+            background.alpha_composite(rgba_image)
+            return background.convert("RGB")
+
+        return image.convert("RGB")
 
     @staticmethod
     def _infer_orientation(page: PageObject) -> Orientation:

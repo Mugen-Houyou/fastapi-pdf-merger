@@ -352,6 +352,25 @@
     };
   };
 
+  const isRasterImageFile = (file) => {
+    if (!file) return false;
+    const type = (file.type || '').toLowerCase();
+    if (type && (type.includes('jpeg') || type.includes('png'))) return true;
+    const name = (file.name || '').toLowerCase();
+    return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png');
+  };
+
+  const createOptionsForFile = (file) => {
+    if (isRasterImageFile(file)) {
+      return {
+        paper_size: 'A4',
+        orientation: 'portrait',
+        fit_mode: 'letterbox',
+      };
+    }
+    return createDefaultOptions();
+  };
+
   const syncGlobalControls = () => {
     if (globalPaper) globalPaper.value = globalOptions.paper_size || 'auto';
     if (globalOrientation) globalOrientation.value = globalOptions.orientation || 'auto';
@@ -389,14 +408,21 @@
 
   const addFiles = (newFiles) => {
     if (!newFiles?.length) return;
-    const incoming = Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    const allowedMimeTypes = new Set(['application/pdf', 'image/jpeg', 'image/pjpeg', 'image/jpg', 'image/png', 'image/x-png']);
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+    const incoming = Array.from(newFiles).filter((f) => {
+      const type = (f.type || '').toLowerCase();
+      if (allowedMimeTypes.has(type)) return true;
+      const name = (f.name || '').toLowerCase();
+      return allowedExtensions.some((ext) => name.endsWith(ext));
+    });
     if (incoming.length === 0) { setStatus(translate('messages.pdf_only'), 'error'); return; }
     setStatus('');
     incoming.forEach(f => {
       ensureFileId(f);
       files.push(f);
       ranges.push('');
-      fileOptions.push(createDefaultOptions());
+      fileOptions.push(createOptionsForFile(f));
     });
     refreshList();
     syncGlobalControls();

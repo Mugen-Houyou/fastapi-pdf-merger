@@ -1,11 +1,11 @@
 # FastAPI PDF Merger
 
-FastAPI PDF Merger is a web application and API for combining multiple PDF documents into a single file. It provides a drag-and-drop browser UI, a flexible `/merge` endpoint that supports per-file page ranges and layout options, and configurable upload limits suitable for self-hosted deployments.
+FastAPI PDF Merger is a web application and API for combining multiple PDF documents and JPG/PNG images into a single PDF. It provides a drag-and-drop browser UI, a flexible `/merge` endpoint that supports per-file page ranges and layout options, and configurable upload limits suitable for self-hosted deployments.
 
 ## Features
 
-- **Responsive web UI** served with Jinja2 templates (`/`) for interactive PDF merging.
-- **REST API** `POST /merge` that accepts multiple files, per-file page ranges, layout preferences (paper size, orientation, rotation, fit mode), and selectable processing engines (`pypdf` or `pikepdf`).
+- **Responsive web UI** served with Jinja2 templates (`/`) for interactive merging of PDFs and JPG/PNG images.
+- **REST API** `POST /merge` that accepts multiple PDF, JPG, or PNG files, per-file page ranges, layout preferences (paper size, orientation, rotation, fit mode), and selectable processing engines (`pypdf` or `pikepdf`).
 - **Upload safeguards** with configurable maximum total payload size and per-request validation of PDF extensions, empty files, encryption status, and malformed JSON inputs.
 - **API key protection** enforced via `PDF_MERGER_API_KEY` (or compatible aliases) for the merge endpoint.
 - **Health checks** through `/health` for integration with monitoring systems.
@@ -52,7 +52,7 @@ By default the UI is available at <http://127.0.0.1:8000/>, the API endpoint at 
 
 `POST /merge`
 
-- **files**: one or more PDF files (multipart form field `files`). Files must have the `.pdf` extension and cannot be encrypted or empty.
+- **files**: one or more PDF, JPG, or PNG files (multipart form field `files`). Files cannot be encrypted or empty.
 - **ranges**: (optional) JSON list of page range strings corresponding to each file (e.g., `["1-3,5",""]`).
 - **options**: (optional) JSON list of per-file layout objects supporting `paper_size`, `orientation`, `fit_mode`, and `rotation` (via `rotate90`, `rotate180`, `rotate270`).
 - **output_name**: (optional) Desired filename for the merged PDF (`merged.pdf` by default).
