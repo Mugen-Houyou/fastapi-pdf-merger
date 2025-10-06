@@ -306,6 +306,10 @@ class PdfMergerService:
         target_width, target_height = self._target_dimensions(paper_size, orientation)
         new_page = PageObject.create_blank_page(width=target_width, height=target_height)
 
+        applied_rotation = self._page_rotation(working_page)
+        if applied_rotation:
+            working_page = cast(PageObject, working_page.rotate(-applied_rotation))
+
         mediabox = working_page.mediabox
         original_width = float(mediabox.width or target_width)
         original_height = float(mediabox.height or target_height)
@@ -314,16 +318,23 @@ class PdfMergerService:
             original_width = target_width
             original_height = target_height
 
-        if fit_mode == "crop":
-            scale_factor = max(target_width / original_width, target_height / original_height)
+        if applied_rotation in (90, 270):
+            content_width = original_height
+            content_height = original_width
         else:
-            scale_factor = min(target_width / original_width, target_height / original_height)
+            content_width = original_width
+            content_height = original_height
+
+        if fit_mode == "crop":
+            scale_factor = max(target_width / content_width, target_height / content_height)
+        else:
+            scale_factor = min(target_width / content_width, target_height / content_height)
 
         if not (scale_factor and scale_factor > 0):
             scale_factor = 1.0
 
-        scaled_width = original_width * scale_factor
-        scaled_height = original_height * scale_factor
+        scaled_width = content_width * scale_factor
+        scaled_height = content_height * scale_factor
 
         offset_x = (target_width - scaled_width) / 2
         offset_y = (target_height - scaled_height) / 2
@@ -331,6 +342,15 @@ class PdfMergerService:
         transform = (
             Transformation()
             .translate(-float(mediabox.left), -float(mediabox.bottom))
+        )
+
+        if applied_rotation:
+            transform = transform.rotate(applied_rotation).translate(
+                *self._rotation_translation(applied_rotation, original_width, original_height)
+            )
+
+        transform = (
+            transform
             .scale(scale_factor)
             .translate(offset_x, offset_y)
         )
@@ -355,6 +375,29 @@ class PdfMergerService:
                 return page
 
         return page
+
+    @staticmethod
+    def _page_rotation(page: PageObject) -> int:
+        try:
+            value = int(page.get("/Rotate", 0))
+        except (TypeError, ValueError):
+            return 0
+        value %= 360
+        if value in (90, 180, 270):
+            return value
+        return 0
+
+    @staticmethod
+    def _rotation_translation(
+        rotation: int, width: float, height: float
+    ) -> Tuple[float, float]:
+        if rotation == 90:
+            return (height, 0.0)
+        if rotation == 180:
+            return (width, height)
+        if rotation == 270:
+            return (0.0, width)
+        return (0.0, 0.0)
 
     def export(self, output_name: Optional[str]) -> StreamingResponse:
         writer = PdfWriter()
