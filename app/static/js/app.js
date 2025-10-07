@@ -900,5 +900,13 @@
     });
   }
 
+  window.addEventListener('beforeunload', (event) => {
+    if (files.length === 0) return;
+    const message = translate('messages.leave_confirm');
+    event.preventDefault();
+    event.returnValue = message;
+    return message;
+  });
+
   syncGlobalControls();
 })();
