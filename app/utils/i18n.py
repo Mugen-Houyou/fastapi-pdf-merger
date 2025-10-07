@@ -167,7 +167,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                 "reordered": "파일 순서를 거꾸로 정렬했습니다.",
                 "confirm_remove": "이 파일을 삭제하시겠습니까?",
                 "confirm_clear": "전체 목록을 지우시겠습니까?",
-                "leave_confirm": "파일 목록이 비어있지 않습니다. 페이지를 떠나시겠습니까?",
+                "leave_confirm": "페이지를 떠나시겠습니까? 작업 중인 모든 항목들이 사라집니다.",
             },
             "aria": {
                 "drag_handle": "{name}를 드래그하여 순서를 변경",
