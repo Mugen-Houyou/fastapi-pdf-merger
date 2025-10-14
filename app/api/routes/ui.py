@@ -1,4 +1,6 @@
 # app/api/routes/ui.py
+from datetime import datetime
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -24,6 +26,7 @@ async def index(request: Request) -> HTMLResponse:
             "locale": locale,
             "t": translations["template"],
             "client_translations": translations["client"],
+            "current_year": datetime.now().year,
             # 템플릿에 내려줄 기본값/플래그
             "defaults": {
                 "output_name": "merged.pdf",
