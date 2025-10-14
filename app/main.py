@@ -12,7 +12,7 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def limit_upload_size(request: Request, call_next):
-        if request.method == "POST" and request.url.path == "/merge":
+        if request.method == "POST" and request.url.path == "/pdf-merger/merge":
             content_length = request.headers.get("content-length")
             if content_length and content_length.isdigit():
                 size_mb = int(content_length) / (1024 * 1024)

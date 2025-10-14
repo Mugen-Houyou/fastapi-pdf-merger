@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from app.core.config import settings  # 네 config.py에 Settings가 있다고 가정
 from app.utils.i18n import detect_locale, get_translations
 
-router = APIRouter(tags=["ui"])
+router = APIRouter(prefix="/pdf-merger", tags=["ui"])
 templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/", response_class=HTMLResponse)
