@@ -43,3 +43,33 @@ async def index(request: Request) -> HTMLResponse:
             },
         },
     )
+
+
+@router.get("/pdf-to-images", response_class=HTMLResponse)
+async def pdf_to_images(request: Request) -> HTMLResponse:
+    """
+    PDF to Images conversion UI page
+    """
+    locale = detect_locale(request)
+    translations = get_translations(locale)
+
+    return templates.TemplateResponse(
+        "pdf_to_images.html",
+        {
+            "request": request,
+            "locale": locale,
+            "t": translations["template"],
+            "client_translations": translations["client"],
+            "current_year": datetime.now().year,
+            "defaults": {
+                "dpi": 200,
+                "quality": 85,
+            },
+            "feature_flags": {
+                "api_key_required": bool(settings.api_key),
+            },
+            "limits": {
+                "total_upload_mb": settings.max_total_upload_mb,
+            },
+        },
+    )

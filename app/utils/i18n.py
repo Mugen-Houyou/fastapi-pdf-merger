@@ -51,6 +51,15 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "clear_button": "Clear files",
             "range_hint_html": "Page range example: <code>1-3,5</code> (leave empty for entire file)",
             "range_placeholder": "Page ranges e.g. 1-3,5",
+            # PDF to Images
+            "pdf_to_images_title": "PDF to Images",
+            "pdf_to_images_description": "Convert PDF pages to high-quality JPG images and download them as a ZIP file.",
+            "pdf_to_images_drop_instruction": "Drop a PDF file here or click to browse",
+            "pdf_to_images_button": "🖼️ Convert to Images",
+            "dpi_label": "Resolution (DPI)",
+            "dpi_description": "Higher values produce better quality but larger files (72-600)",
+            "quality_label": "JPG Quality",
+            "quality_description": "Higher values produce better quality but larger files (1-100)",
         },
         "client": {
             "buttons": {
@@ -108,6 +117,24 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                     "crop": "Crop (cover)",
                 },
             },
+            # PDF to Images messages
+            "pdf_to_images": {
+                "buttons": {
+                    "convert": "🖼️ Convert to Images",
+                    "converting": "Converting…",
+                },
+                "messages": {
+                    "empty": "No PDF file selected. Drop a PDF above or click to browse.",
+                    "pdf_only": "Only PDF files are supported.",
+                    "select_file": "Please select a PDF file first.",
+                    "converting": "Converting PDF to images…",
+                    "converting_progress": "Converting… {size}",
+                    "converted": "Conversion complete! Your download should begin automatically.",
+                    "convert_failed": "Failed to convert PDF.",
+                    "failed_prefix": "Failed: {message}",
+                    "confirm_clear": "Are you sure you want to clear the selected file?",
+                },
+            },
         },
     },
     "ko": {
@@ -145,6 +172,15 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             "clear_button": "전체 목록 지우기",
             "range_hint_html": "페이지 범위 예시: <code>1-3,5</code> (비워두면 전체 페이지)",
             "range_placeholder": "페이지 범위 예: 1-3,5",
+            # PDF to Images
+            "pdf_to_images_title": "PDF를 이미지로",
+            "pdf_to_images_description": "PDF 페이지를 고품질 JPG 이미지로 변환하여 ZIP 파일로 다운로드합니다.",
+            "pdf_to_images_drop_instruction": "여기에 PDF 파일을 드래그하거나 클릭하여 업로드하세요",
+            "pdf_to_images_button": "🖼️ 이미지로 변환",
+            "dpi_label": "해상도 (DPI)",
+            "dpi_description": "값이 클수록 품질이 좋지만 파일 크기가 커집니다 (72-600)",
+            "quality_label": "JPG 품질",
+            "quality_description": "값이 클수록 품질이 좋지만 파일 크기가 커집니다 (1-100)",
         },
         "client": {
             "buttons": {
@@ -200,6 +236,24 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
                     "auto": "자동",
                     "letterbox": "레터박스(전체 보기)",
                     "crop": "크롭(채우기)",
+                },
+            },
+            # PDF to Images messages
+            "pdf_to_images": {
+                "buttons": {
+                    "convert": "🖼️ 이미지로 변환",
+                    "converting": "변환 중…",
+                },
+                "messages": {
+                    "empty": "PDF 파일이 선택되지 않았습니다. 위에서 PDF를 추가하세요.",
+                    "pdf_only": "PDF 파일만 지원합니다.",
+                    "select_file": "먼저 PDF 파일을 선택하세요.",
+                    "converting": "PDF를 이미지로 변환 중…",
+                    "converting_progress": "변환 중… {size}",
+                    "converted": "변환이 완료되었습니다! 다운로드가 자동으로 시작됩니다.",
+                    "convert_failed": "PDF 변환에 실패했습니다.",
+                    "failed_prefix": "실패: {message}",
+                    "confirm_clear": "선택한 파일을 삭제하시겠습니까?",
                 },
             },
         },

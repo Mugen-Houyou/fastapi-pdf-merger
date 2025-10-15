@@ -1,0 +1,82 @@
+<!-- app/templates/pdf_to_images.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ t.pdf_to_images_title }}{% endblock %}
+
+{% block body %}
+<header class="hero">
+  <h1>{{ t.pdf_to_images_title }}</h1>
+  <p>{{ t.pdf_to_images_description }}</p>
+  <nav style="margin-top: 1rem;">
+    <a href="{{ url_for('index') }}" style="color: var(--color-text); text-decoration: underline;">← Back to PDF Merger</a>
+  </nav>
+</header>
+
+<section class="card">
+  <label class="dropzone" id="dropBox">
+    <input
+      id="fileInput"
+      type="file"
+      accept="application/pdf,.pdf"
+    />
+    <div class="dropzone-inner">
+      <div class="drop-icon">📄</div>
+      <strong>{{ t.pdf_to_images_drop_instruction }}</strong>
+      <p class="upload-limit">{{ t.upload_limit_note.format(limit=limits.total_upload_mb) }}</p>
+    </div>
+  </label>
+
+  <div id="fileInfo" class="file-info" style="display: none;">
+    <div class="file-meta">
+      <span class="file-name" id="fileName"></span>
+      <button id="clearBtn" type="button" class="icon-btn danger" style="margin-left: auto;">Clear</button>
+    </div>
+  </div>
+
+  <div class="form-grid">
+    <label>
+      {{ t.range_label if t.range_label is defined else "Page range" }}
+      <input id="pageRange" type="text" placeholder="{{ t.range_placeholder }}" />
+      <small>{{ t.range_hint_html | safe }}</small>
+    </label>
+    <label>
+      {{ t.dpi_label }}
+      <input id="dpi" type="number" min="72" max="600" value="{{ defaults.dpi }}" />
+      <small>{{ t.dpi_description }}</small>
+    </label>
+    <label>
+      {{ t.quality_label }}
+      <input id="quality" type="number" min="1" max="100" value="{{ defaults.quality }}" />
+      <small>{{ t.quality_description }}</small>
+    </label>
+    <label style="display: none;">
+      {{ t.api_key_label }}
+      <input id="apiKey" type="text" placeholder="{{ t.api_key_placeholder }}" {% if not feature_flags.api_key_required %}disabled{% endif %}/>
+    </label>
+  </div>
+
+  <div class="actions">
+    <button id="convertBtn" class="primary" disabled>
+      <span>{{ t.pdf_to_images_button }}</span>
+    </button>
+  </div>
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Server values for JS
+  window.__PDF_TO_IMAGES__ = {
+    apiKeyRequired: {{ feature_flags.api_key_required | tojson }},
+    defaults: {{ defaults | tojson }},
+    endpoints: {
+      convert: "{{ url_for('convert_pdf_to_images') if url_for else '/pdf-merger/pdf-to-images' }}"
+    },
+    locale: {{ (locale | default('en')) | tojson }},
+    i18n: {{ client_translations | default({}) | tojson }},
+    limits: {{ limits | default({}) | tojson }}
+  };
+</script>
+<script src="{{ url_for('static', path='js/pdf_to_images.js') }}"></script>
+{% endblock %}
