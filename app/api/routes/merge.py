@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from app.dependencies.security import ApiKeyDependency
 from app.services.pdf_merger import PdfMergerService
 
-router = APIRouter(prefix="/pdf-merger", tags=["merge"])
+router = APIRouter(prefix="/api/v1", tags=["merge"])
 
 
 @router.post("/merge", response_class=StreamingResponse, dependencies=[ApiKeyDependency])

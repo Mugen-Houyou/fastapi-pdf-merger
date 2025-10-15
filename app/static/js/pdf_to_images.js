@@ -17,7 +17,7 @@
   const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDF_TO_IMAGES__ || {
     apiKeyRequired: false,
     defaults: { dpi: 200, quality: 85 },
-    endpoints: { convert: '/pdf-merger/pdf-to-images' },
+    endpoints: { convert: '/api/v1/pdf-to-images' },
     i18n: {},
     locale: 'en',
     limits: {}
@@ -140,7 +140,7 @@
     setStatus(translate('pdf_to_images.messages.converting'), 'pending');
 
     try {
-      const resp = await fetch(endpoints.convert || '/pdf-merger/pdf-to-images', {
+      const resp = await fetch(endpoints.convert || '/api/v1/pdf-to-images', {
         method: 'POST',
         body: form,
         headers

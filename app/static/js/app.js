@@ -19,7 +19,7 @@
   const { apiKeyRequired, defaults, endpoints, i18n = {}, locale = 'en', limits = {} } = window.__PDFMERGER__ || {
     apiKeyRequired: false,
     defaults: { output_name: 'merged.pdf', paper_size: 'auto', orientation: 'auto', fit_mode: 'auto' },
-    endpoints: { merge: '/pdf-merger/merge' },
+    endpoints: { merge: '/api/v1/merge' },
     i18n: {},
     locale: 'en',
     limits: {}
@@ -827,7 +827,7 @@
     setStatus(translate('messages.merging'), 'pending');
 
     try {
-      const resp = await fetch(endpoints.merge || '/pdf-merger/merge', { method: 'POST', body: form, headers });
+      const resp = await fetch(endpoints.merge || '/api/v1/merge', { method: 'POST', body: form, headers });
       if (!resp.ok) {
         const msg = await resp.text();
         throw new Error(msg || `Request failed with status ${resp.status}`);

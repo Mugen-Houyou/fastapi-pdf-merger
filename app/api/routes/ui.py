@@ -9,6 +9,7 @@ from app.core.config import settings  # 네 config.py에 Settings가 있다고 �
 from app.utils.i18n import detect_locale, get_translations
 
 router = APIRouter(prefix="/pdf-merger", tags=["ui"])
+pdf_to_images_router = APIRouter(prefix="", tags=["ui"])
 templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/", response_class=HTMLResponse)
@@ -45,7 +46,7 @@ async def index(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/pdf-to-images", response_class=HTMLResponse)
+@pdf_to_images_router.get("/pdf-to-images", response_class=HTMLResponse)
 async def pdf_to_images(request: Request) -> HTMLResponse:
     """
     PDF to Images conversion UI page

@@ -1,15 +1,15 @@
 # FastAPI PDF Merger
 
-FastAPI PDF Merger is a web application and API for combining multiple PDF documents and JPG/PNG images into a single PDF, or converting PDF pages to images. It provides a drag-and-drop browser UI, a flexible `/pdf-merger/merge` endpoint that supports per-file page ranges and layout options, a `/pdf-merger/pdf-to-images` endpoint for converting PDFs to high-quality JPG images, and configurable upload limits suitable for self-hosted deployments.
+FastAPI PDF Merger is a web application and API for combining multiple PDF documents and JPG/PNG images into a single PDF, or converting PDF pages to images. It provides a drag-and-drop browser UI, a flexible `/api/v1/merge` endpoint that supports per-file page ranges and layout options, a `/api/v1/pdf-to-images` endpoint for converting PDFs to high-quality JPG images, and configurable upload limits suitable for self-hosted deployments.
 
 ## Features
 
-- **Responsive web UI** served with Jinja2 templates (`/pdf-merger/`) for interactive merging of PDFs and JPG/PNG images.
-- **PDF Merge API** `POST /pdf-merger/merge` that accepts multiple PDF, JPG, or PNG files, per-file page ranges, layout preferences (paper size, orientation, rotation, fit mode), and selectable processing engines (`pypdf` or `pikepdf`).
-- **PDF to Images Conversion** `POST /pdf-merger/pdf-to-images` converts PDF pages to high-quality JPG images and packages them as a ZIP file. Supports DPI and quality adjustments, along with page range selection.
+- **Responsive web UI** served with Jinja2 templates (`/pdf-merger/`) for interactive merging of PDFs and JPG/PNG images, and a PDF-to-Images conversion page (`/pdf-to-images`) for converting PDFs to images.
+- **PDF Merge API** `POST /api/v1/merge` that accepts multiple PDF, JPG, or PNG files, per-file page ranges, layout preferences (paper size, orientation, rotation, fit mode), and selectable processing engines (`pypdf` or `pikepdf`).
+- **PDF to Images Conversion API** `POST /api/v1/pdf-to-images` converts PDF pages to high-quality JPG images and packages them as a ZIP file. Supports DPI and quality adjustments, along with page range selection.
 - **Upload safeguards** with configurable maximum total payload size and per-request validation of PDF extensions, empty files, encryption status, and malformed JSON inputs.
 - **API key protection** enforced via `PDF_MERGER_API_KEY` (or compatible aliases) for API endpoints.
-- **Health checks** through `/health` for integration with monitoring systems.
+- **Health checks** through `/api/v1/health` for integration with monitoring systems.
 - **Concurrency control** using an AnyIO capacity limiter to avoid CPU spikes when merging or converting large documents.
 - **Internationalization** supports English and Korean UI with automatic selection based on Accept-Language headers.
 
@@ -48,11 +48,11 @@ Launch the FastAPI application locally with Uvicorn:
 uvicorn app.main:app --reload
 ```
 
-By default the UI is available at <http://127.0.0.1:8000/pdf-merger/>, the API endpoints at `/pdf-merger/merge` (merge) and `/pdf-merger/pdf-to-images` (convert), and the health check at `/health`.
+By default the merge UI is available at <http://127.0.0.1:8000/pdf-merger/> and the PDF-to-Images UI at <http://127.0.0.1:8000/pdf-to-images>. The API endpoints are at `/api/v1/merge` (merge) and `/api/v1/pdf-to-images` (convert), and the health check at `/api/v1/health`.
 
 ## API Usage
 
-### `POST /pdf-merger/merge`
+### `POST /api/v1/merge`
 
 Merges PDF and image files into a single PDF.
 
@@ -64,7 +64,7 @@ Merges PDF and image files into a single PDF.
 
 The endpoint returns a streaming response containing the merged PDF. Errors are reported with clear HTTP status codes when validation fails.
 
-### `POST /pdf-merger/pdf-to-images`
+### `POST /api/v1/pdf-to-images`
 
 Converts PDF pages to JPG images and returns them as a ZIP file.
 

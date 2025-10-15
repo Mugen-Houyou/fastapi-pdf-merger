@@ -12,7 +12,7 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def limit_upload_size(request: Request, call_next):
-        if request.method == "POST" and request.url.path in ["/pdf-merger/merge", "/pdf-merger/pdf-to-images"]:
+        if request.method == "POST" and request.url.path in ["/api/v1/merge", "/api/v1/pdf-to-images"]:
             content_length = request.headers.get("content-length")
             if content_length and content_length.isdigit():
                 size_mb = int(content_length) / (1024 * 1024)
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
         return await call_next(request)
 
     app.include_router(ui.router)
+    app.include_router(ui.pdf_to_images_router)
     app.include_router(merge.router)
     app.include_router(pdf_to_images.router)
     app.include_router(health.router)

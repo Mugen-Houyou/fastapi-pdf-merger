@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from app.dependencies.security import ApiKeyDependency
 from app.services.pdf_to_images import PdfToImagesService
 
-router = APIRouter(prefix="/pdf-merger", tags=["pdf-to-images"])
+router = APIRouter(prefix="/api/v1", tags=["pdf-to-images"])
 
 
 @router.post(

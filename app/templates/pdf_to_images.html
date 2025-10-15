@@ -71,7 +71,7 @@
     apiKeyRequired: {{ feature_flags.api_key_required | tojson }},
     defaults: {{ defaults | tojson }},
     endpoints: {
-      convert: "{{ url_for('convert_pdf_to_images') if url_for else '/pdf-merger/pdf-to-images' }}"
+      convert: "{{ url_for('convert_pdf_to_images') if url_for else '/api/v1/pdf-to-images' }}"
     },
     locale: {{ (locale | default('en')) | tojson }},
     i18n: {{ client_translations | default({}) | tojson }},
