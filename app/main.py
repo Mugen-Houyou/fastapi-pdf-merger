@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import health, merge, pdf_to_images, ui
@@ -9,6 +9,11 @@ from app.core.config import settings
 def create_app() -> FastAPI:
     app = FastAPI(title="Internal PDF Merger", version="1.0.0")
     app.mount("/static", StaticFiles(directory="app/static"), name="static") 
+
+    # Redirect root path to UI entrypoint
+    @app.get("/", include_in_schema=False)
+    async def root_redirect():
+        return RedirectResponse(url="/pdf-merger/", status_code=307)
 
     @app.middleware("http")
     async def limit_upload_size(request: Request, call_next):
