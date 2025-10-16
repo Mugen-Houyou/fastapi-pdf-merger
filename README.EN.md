@@ -75,6 +75,8 @@ Converts PDF pages to JPG images and returns them as a ZIP file.
 
 The endpoint returns a streaming response containing a ZIP file with the converted JPG images.
 
+**Limitation**: If the total size of output image files exceeds approximately 300MB, subsequent pages will be automatically skipped and a `README.txt` file will be included in the ZIP file. To convert all pages, reduce the DPI or quality settings.
+
 ## Development
 
 - Static assets live in `app/static/` and templates in `app/templates/`.

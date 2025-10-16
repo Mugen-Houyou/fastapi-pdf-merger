@@ -54,6 +54,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             # PDF to Images
             "pdf_to_images_title": "PDF to Images",
             "pdf_to_images_description": "Convert PDF pages to high-quality JPG images and download them as a ZIP file.",
+            "pdf_to_images_size_limit": "Note: Output is limited to ~300MB. If exceeded, remaining pages will be skipped and a README.txt will be included in the ZIP.",
             "pdf_to_images_drop_instruction": "Drop a PDF file here or click to browse",
             "pdf_to_images_button": "🖼️ Convert to Images",
             "dpi_label": "Resolution (DPI)",
@@ -175,6 +176,7 @@ TRANSLATIONS: Dict[str, Dict[str, Any]] = {
             # PDF to Images
             "pdf_to_images_title": "PDF를 이미지로",
             "pdf_to_images_description": "PDF 페이지를 고품질 JPG 이미지로 변환하여 ZIP 파일로 다운로드합니다.",
+            "pdf_to_images_size_limit": "참고: 출력 파일은 약 300MB로 제한됩니다. 초과 시 이후 페이지들은 누락되며 ZIP 파일에 README.txt가 포함됩니다.",
             "pdf_to_images_drop_instruction": "여기에 PDF 파일을 드래그하거나 클릭하여 업로드하세요",
             "pdf_to_images_button": "🖼️ 이미지로 변환",
             "dpi_label": "해상도 (DPI)",

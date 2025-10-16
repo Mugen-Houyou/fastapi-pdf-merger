@@ -17,6 +17,9 @@ from app.utils.page_ranges import parse_page_ranges
 class PdfToImagesService:
     """Convert PDF pages to images (JPG) and package them as a ZIP file."""
 
+    # Maximum total size of output images in bytes (~300MB)
+    MAX_OUTPUT_SIZE_BYTES = 300 * 1024 * 1024
+
     def __init__(self, dpi: int = 200, quality: int = 85) -> None:
         """
         Initialize the PDF to images service.
@@ -120,6 +123,10 @@ class PdfToImagesService:
 
             # Create ZIP file in memory
             zip_buffer = io.BytesIO()
+            total_output_size = 0
+            pages_processed = 0
+            pages_skipped = 0
+
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                 base_name = Path(filename).stem
 
@@ -137,15 +144,34 @@ class PdfToImagesService:
                         # Convert to JPG bytes
                         img_bytes = pix.tobytes("jpeg", jpg_quality=self.quality)
 
+                        # Check if adding this image would exceed the limit
+                        if total_output_size + len(img_bytes) > self.MAX_OUTPUT_SIZE_BYTES:
+                            # Stop processing further pages
+                            pages_skipped = len(page_indices) - pages_processed
+                            break
+
                         # Add to ZIP with sequential naming
                         image_name = f"{base_name}_page_{idx:04d}.jpg"
                         zip_file.writestr(image_name, img_bytes)
+
+                        total_output_size += len(img_bytes)
+                        pages_processed += 1
 
                     except Exception as exc:  # pragma: no cover - defensive
                         raise HTTPException(
                             status_code=500,
                             detail=f"Failed to convert page {page_number + 1}: {exc}"
                         ) from exc
+
+                # Add a note if pages were skipped due to size limit
+                if pages_skipped > 0:
+                    note = (
+                        f"Note: {pages_skipped} page(s) were skipped due to output size limit.\n"
+                        f"Total output size: {total_output_size / (1024 * 1024):.2f} MB\n"
+                        f"Maximum allowed: {self.MAX_OUTPUT_SIZE_BYTES / (1024 * 1024):.0f} MB\n"
+                        f"\nTo convert all pages, try reducing DPI or quality settings."
+                    )
+                    zip_file.writestr("README.txt", note)
 
             zip_buffer.seek(0)
             return zip_buffer
