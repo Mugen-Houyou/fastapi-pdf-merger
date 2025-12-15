@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 from dataclasses import dataclass
 from typing import Iterable, Literal, Optional, Tuple, cast
+from urllib.parse import quote
 
 from fastapi import HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -418,5 +419,10 @@ class PdfMergerService:
         if not final_name.lower().endswith(".pdf"):
             final_name += ".pdf"
 
-        headers = {"Content-Disposition": f'attachment; filename="{final_name}"'}
+        # RFC 5987/RFC 6266: ASCII fallback + UTF-8 encoded filename
+        ascii_name = final_name.encode('ascii', 'replace').decode('ascii')
+        encoded_name = quote(final_name, safe='')
+        headers = {
+            "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded_name}"
+        }
         return StreamingResponse(buffer, media_type="application/pdf", headers=headers)

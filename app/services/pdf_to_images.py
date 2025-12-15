@@ -4,6 +4,7 @@ import io
 import zipfile
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 import fitz  # PyMuPDF
 from anyio import to_thread
@@ -78,7 +79,12 @@ class PdfToImagesService:
         output_name = f"{base_name}_images.zip"
 
         # Return as streaming response
-        headers = {"Content-Disposition": f'attachment; filename="{output_name}"'}
+        # RFC 5987/RFC 6266: ASCII fallback + UTF-8 encoded filename
+        ascii_name = output_name.encode('ascii', 'replace').decode('ascii')
+        encoded_name = quote(output_name, safe='')
+        headers = {
+            "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded_name}"
+        }
         return StreamingResponse(
             zip_buffer,
             media_type="application/zip",
